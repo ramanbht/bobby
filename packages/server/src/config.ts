@@ -1,0 +1,58 @@
+import "dotenv/config";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import fs from "node:fs";
+import type { HarnessId } from "@bobby/shared";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+/** Package root (packages/server), regardless of running from src/ or dist/. */
+const pkgRoot = path.resolve(__dirname, "..");
+
+function bool(v: string | undefined, fallback: boolean): boolean {
+  if (v === undefined) return fallback;
+  return ["1", "true", "yes", "on"].includes(v.toLowerCase());
+}
+
+const dataDir = path.join(pkgRoot, "data");
+
+export interface Config {
+  port: number;
+  dbPath: string;
+  /** Base dir for per-chat harness working directories. */
+  workspacesDir: string;
+  bin: Record<HarnessId, string>;
+  claudePermissionMode: string;
+  obsidianVault: string | null;
+  obsidianFolder: string;
+  distillHarness: HarnessId;
+  autoDistill: boolean;
+}
+
+export const config: Config = {
+  port: Number(process.env.PORT ?? 8787),
+  dbPath: process.env.BOBBY_DB ?? path.join(dataDir, "bobby.sqlite"),
+  workspacesDir: process.env.BOBBY_WORKDIR ?? path.join(dataDir, "workspaces"),
+  bin: {
+    claude: process.env.BOBBY_CLAUDE_BIN ?? "claude",
+    hermes: process.env.BOBBY_HERMES_BIN ?? "hermes",
+    pi: process.env.BOBBY_PI_BIN ?? "pi",
+  },
+  claudePermissionMode: process.env.BOBBY_CLAUDE_PERMISSION_MODE ?? "acceptEdits",
+  obsidianVault: process.env.OBSIDIAN_VAULT ?? null,
+  obsidianFolder: process.env.OBSIDIAN_FOLDER ?? "Bobby",
+  distillHarness: (process.env.BOBBY_DISTILL_HARNESS as HarnessId) ?? "claude",
+  autoDistill: bool(process.env.BOBBY_AUTO_DISTILL, false),
+};
+
+/** Ensure the runtime data directories exist. */
+export function ensureDirs(): void {
+  fs.mkdirSync(path.dirname(config.dbPath), { recursive: true });
+  fs.mkdirSync(config.workspacesDir, { recursive: true });
+}
+
+/** Per-chat working directory the harness subprocess runs in. */
+export function chatWorkdir(chatId: string): string {
+  const dir = path.join(config.workspacesDir, chatId);
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}

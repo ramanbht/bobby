@@ -1,0 +1,20 @@
+node_modules/
+dist/
+*.log
+.env
+.env.local
+
+# Bobby runtime data (chats DB lives here by default)
+data/
+*.sqlite
+*.sqlite-*
+*.db
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.tsbuildinfo
+
+# Claude Code local settings
+.claude/settings.local.json

@@ -1,0 +1,23 @@
+{
+  "name": "bobby",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An open, OpenClaw-style chat dashboard that sits on top of your existing LLM harnesses (Claude Code, Hermes, pi), saves every chat, and distills memories into Obsidian.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "dev": "pnpm --filter @bobby/shared build && concurrently -n shared,server,web -c gray,blue,magenta \"pnpm --filter @bobby/shared dev\" \"pnpm --filter @bobby/server dev\" \"pnpm --filter @bobby/web dev\"",
+    "build": "pnpm --filter @bobby/shared build && pnpm --filter @bobby/server build && pnpm --filter @bobby/web build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @bobby/shared build && pnpm --filter @bobby/server test",
+    "start": "pnpm --filter @bobby/server start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.6.3"
+  }
+}

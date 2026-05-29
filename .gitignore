@@ -21,3 +21,4 @@ data/
 
 # Electron build output
 packages/desktop/release/
+packages/desktop/build/server.cjs

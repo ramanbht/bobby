@@ -6,46 +6,35 @@ import path from "node:path";
 /**
  * Bobby desktop shell.
  *
- * Electron boots the Bobby server as a child process (which serves both the
- * API/WebSocket and the built web UI from one origin), waits for it to come up,
- * then loads it in a native window.
+ * Electron starts the Bobby server (which serves the API/WebSocket *and* the
+ * built web UI from one origin), waits for it, then loads it in a window.
  *
- *  - In development we spawn the server with the system `node`, so the
- *    `better-sqlite3` build already on disk loads fine.
- *  - In a packaged app we run it through Electron's bundled Node
- *    (`ELECTRON_RUN_AS_NODE`), and electron-builder rebuilds native deps to
- *    match Electron's ABI.
+ *  - Packaged: the server is bundled into a single `server.cjs` (esbuild) and
+ *    run **in-process** in the Electron main. `better-sqlite3` is the only
+ *    native dep, rebuilt for Electron's ABI by electron-builder and unpacked
+ *    from the asar — so it loads here directly.
+ *  - Dev: we spawn the workspace server with the system `node`, whose
+ *    `better-sqlite3` build is already on disk.
  */
 
 const PORT = Number(process.env.BOBBY_PORT ?? 8799);
 let server: ChildProcess | null = null;
 
-function resourcePath(...parts: string[]): string {
-  return app.isPackaged
-    ? path.join(process.resourcesPath, ...parts)
-    : path.join(__dirname, "..", "..", ...parts);
-}
-
 function startServer(): void {
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    PORT: String(PORT),
-    BOBBY_DB: path.join(app.getPath("userData"), "bobby.sqlite"),
-    BOBBY_WORKDIR: path.join(app.getPath("userData"), "workspaces"),
-    BOBBY_WEB_DIST: resourcePath("web", "dist"),
-  };
-
-  const entry = resourcePath("server", "dist", "index.js");
+  process.env.PORT = String(PORT);
+  process.env.BOBBY_DB = path.join(app.getPath("userData"), "bobby.sqlite");
+  process.env.BOBBY_WORKDIR = path.join(app.getPath("userData"), "workspaces");
 
   if (app.isPackaged) {
-    // Use Electron's own Node so we don't depend on a system install.
-    env.ELECTRON_RUN_AS_NODE = "1";
-    server = spawn(process.execPath, [entry], { env, stdio: "inherit" });
+    process.env.BOBBY_WEB_DIST = path.join(process.resourcesPath, "web", "dist");
+    // Run the bundled server in this process (native deps match Electron's ABI).
+    require(path.join(__dirname, "..", "build", "server.cjs"));
   } else {
-    server = spawn("node", [entry], { env, stdio: "inherit" });
+    process.env.BOBBY_WEB_DIST = path.join(__dirname, "..", "..", "web", "dist");
+    const entry = path.join(__dirname, "..", "..", "server", "dist", "index.js");
+    server = spawn("node", [entry], { env: process.env, stdio: "inherit" });
+    server.on("exit", (code) => console.log("[bobby] server exited", code));
   }
-
-  server.on("exit", (code) => console.log("[bobby] server exited", code));
 }
 
 function waitForServer(retries = 80): Promise<void> {

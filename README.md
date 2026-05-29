@@ -40,9 +40,17 @@ is a single adapter file.
   own, independent of each harness's own session store.
 - 🧠 **Knowledge, not just transcripts.** Distill any chat into atomic notes written
   straight into your Obsidian vault — automatically or on demand.
+- 📊 **Rich output.** Replies render real widgets — charts, diagrams (Mermaid),
+  tables, and code — not just walls of text.
+- 🖥️ **Runs anywhere.** A browser tab (`pnpm dev`) or a native desktop app
+  (`pnpm desktop`, packaged to `.dmg`/`.exe`/`AppImage`).
 - 🧩 **Open & extensible.** Adding a new harness is one adapter file. MIT licensed.
 
 ## Screenshots
+
+<img src="docs/screenshots/widgets.png" width="860" alt="Charts, tables and diagrams rendered inline" />
+
+<sub>Replies render as widgets — charts, tables, and Mermaid diagrams.</sub>
 
 | Multi-harness sidebar + welcome | Global settings |
 | :---: | :---: |
@@ -84,13 +92,18 @@ pnpm dev                # ▶ web UI on http://localhost:5173, API on :8787
 Prefer a native window over a browser tab?
 
 ```bash
-pnpm desktop      # opens Bobby in its own window (Electron) — boots the server for you
+pnpm desktop        # run Bobby in its own window (Electron) — boots the server for you
+pnpm desktop:dist   # build a double-click installer → packages/desktop/release/
 ```
 
-Building distributable installers (`.dmg` / `.exe` / `AppImage`) is wired via
-`pnpm desktop:dist` (electron-builder); bundling the native SQLite module into the
-installer is still being smoothed out, so `pnpm desktop` is the recommended way to
-run the app today.
+`pnpm desktop:dist` produces a real installer (`.dmg` on macOS, `.exe` on Windows,
+`AppImage` on Linux). The server is bundled into a single file and runs in-process;
+the native SQLite module is rebuilt for Electron automatically, so the packaged app
+is fully self-contained.
+
+> Note: `desktop:dist` recompiles `better-sqlite3` for Electron's ABI. If you then
+> want to run `pnpm dev` / `pnpm test` (which use system Node), run `pnpm install`
+> once to restore it.
 
 ## Configuration
 

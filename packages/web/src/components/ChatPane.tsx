@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChatWithMessages, HarnessId, HarnessInfo, Message, UpdateChatRequest } from "@bobby/shared";
+import { MessageContent } from "./MessageContent.js";
 
 export function ChatPane({
   chat,
@@ -234,7 +235,7 @@ function MessageBubble({
           </div>
         ) : (
           <>
-            {renderContent(message.content)}
+            <MessageContent text={message.content} />
             {streaming && <span className="cursor">▋</span>}
             {message.meta?.toolCalls?.length ? (
               <div className="tool-note">
@@ -252,39 +253,3 @@ function MessageBubble({
   );
 }
 
-/** Minimal renderer: fenced code blocks become <pre>; prose gets inline markdown. */
-function renderContent(text: string): ReactNode {
-  if (!text) return null;
-  const parts = text.split(/```/);
-  return parts.map((part, i) =>
-    i % 2 === 1 ? (
-      <pre key={i} className="code-block">
-        <code>{part.replace(/^[\w-]*\n/, "")}</code>
-      </pre>
-    ) : (
-      <span key={i} className="prose">
-        {renderInline(part)}
-      </span>
-    ),
-  );
-}
-
-/** Inline markdown: **bold**, *italic*, `code`. Newlines/lists are preserved by the
- *  parent's `white-space: pre-wrap`, so we only need to tokenize emphasis here. */
-function renderInline(text: string): ReactNode[] {
-  const nodes: ReactNode[] = [];
-  const re = /(\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*)/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-  let k = 0;
-  while ((m = re.exec(text))) {
-    if (m.index > last) nodes.push(text.slice(last, m.index));
-    const tok = m[0];
-    if (tok.startsWith("**")) nodes.push(<strong key={k++}>{tok.slice(2, -2)}</strong>);
-    else if (tok.startsWith("`")) nodes.push(<code key={k++} className="inline-code">{tok.slice(1, -1)}</code>);
-    else nodes.push(<em key={k++}>{tok.slice(1, -1)}</em>);
-    last = m.index + tok.length;
-  }
-  if (last < text.length) nodes.push(text.slice(last));
-  return nodes;
-}

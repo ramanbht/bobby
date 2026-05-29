@@ -59,7 +59,7 @@ a thin, local-first dashboard that drives the harness CLIs you already trust.
 **One line — clone, install, run:**
 
 ```bash
-git clone <your-fork-url> bobby && cd bobby && pnpm install && pnpm dev
+git clone https://github.com/ramanbht/bobby bobby && cd bobby && pnpm install && pnpm dev
 ```
 
 Then open **http://localhost:5173**, hit **+ New chat**, pick a harness, and type.
@@ -68,7 +68,7 @@ Then open **http://localhost:5173**, hit **+ New chat**, pick a harness, and typ
 <summary>Step by step</summary>
 
 ```bash
-git clone <your-fork-url> bobby && cd bobby
+git clone https://github.com/ramanbht/bobby bobby && cd bobby
 pnpm install            # installs deps, compiles the SQLite native module
 cp .env.example .env    # optional — everything has sane defaults
 pnpm dev                # ▶ web UI on http://localhost:5173, API on :8787

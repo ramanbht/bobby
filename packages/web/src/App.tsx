@@ -17,6 +17,7 @@ import { Sidebar } from "./components/Sidebar.js";
 import { ChatPane } from "./components/ChatPane.js";
 import { Composer } from "./components/Composer.js";
 import { SettingsModal } from "./components/SettingsModal.js";
+import { JobsModal } from "./components/JobsModal.js";
 import { FlowerLogo } from "./components/FlowerLogo.js";
 
 export function App() {
@@ -24,6 +25,7 @@ export function App() {
   const [serverConfig, setServerConfig] = useState<ServerConfigInfo | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showJobs, setShowJobs] = useState(false);
   const [chats, setChats] = useState<Chat[]>([]);
   const [active, setActive] = useState<ChatWithMessages | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,6 +58,7 @@ export function App() {
           }
           case "turn-start": {
             if (frame.chatId !== cur.id) return cur;
+            setBusy(true);
             const placeholder: Message = {
               id: frame.messageId,
               chatId: cur.id,
@@ -78,6 +81,13 @@ export function App() {
               messages: cur.messages.map((m) => (m.id === frame.message.id ? frame.message : m)),
             };
           }
+          case "message-update": {
+            if (frame.chatId !== cur.id) return cur;
+            return {
+              ...cur,
+              messages: cur.messages.map((m) => (m.id === frame.message.id ? frame.message : m)),
+            };
+          }
           case "error":
             setBusy(false);
             return cur;
@@ -92,7 +102,7 @@ export function App() {
     [],
   );
 
-  const { status, send, editMessage } = useChatSocket(onFrame);
+  const { status, send, editMessage, plan, executePlan, stop } = useChatSocket(onFrame);
 
   /* ---- actions ---- */
   const selectChat = async (id: string) => {
@@ -129,6 +139,22 @@ export function App() {
     if (!active) return;
     setBusy(true);
     send(active.id, text);
+  };
+
+  const planFirst = (text: string) => {
+    if (!active) return;
+    setBusy(true);
+    plan(active.id, text);
+  };
+
+  const approvePlan = (messageId: string) => {
+    if (!active) return;
+    setBusy(true);
+    executePlan(active.id, messageId);
+  };
+
+  const stopRun = () => {
+    if (active) stop(active.id);
   };
 
   const editAndResend = (messageId: string, text: string) => {
@@ -175,6 +201,7 @@ export function App() {
         onCreate={createChat}
         onDelete={deleteChat}
         onOpenSettings={() => setShowSettings(true)}
+        onOpenJobs={() => setShowJobs(true)}
       />
       <main className="main">
         {active ? (
@@ -188,12 +215,15 @@ export function App() {
               onDistill={distill}
               onPatch={patchChat}
               onEditMessage={editAndResend}
+              onExecutePlan={approvePlan}
+              onStop={stopRun}
             />
             <Composer
               disabled={false}
               busy={busy}
               harnessLabel={harnesses.find((h) => h.id === active.harness)?.label ?? active.harness}
               onSend={sendMessage}
+              onPlan={planFirst}
             />
           </>
         ) : (
@@ -207,6 +237,18 @@ export function App() {
           harnesses={harnesses}
           onClose={() => setShowSettings(false)}
           onSave={saveSettings}
+        />
+      )}
+
+      {showJobs && (
+        <JobsModal
+          harnesses={harnesses}
+          onClose={() => setShowJobs(false)}
+          onOpenChat={(chatId) => {
+            setShowJobs(false);
+            api.listChats().then(setChats).catch(() => {});
+            selectChat(chatId);
+          }}
         />
       )}
     </div>

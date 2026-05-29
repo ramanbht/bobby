@@ -5,18 +5,22 @@ export function Composer({
   busy,
   harnessLabel,
   onSend,
+  onPlan,
 }: {
   disabled: boolean;
   busy: boolean;
   harnessLabel: string;
   onSend: (text: string) => void;
+  onPlan: (text: string) => void;
 }) {
   const [text, setText] = useState("");
+  const [planFirst, setPlanFirst] = useState(false);
 
   const submit = () => {
     const t = text.trim();
     if (!t || disabled) return;
-    onSend(t);
+    if (planFirst) onPlan(t);
+    else onSend(t);
     setText("");
   };
 
@@ -29,16 +33,31 @@ export function Composer({
 
   return (
     <div className="composer">
+      <button
+        type="button"
+        className={`plan-toggle ${planFirst ? "on" : ""}`}
+        title="Plan first: propose a step-by-step plan to review before running"
+        onClick={() => setPlanFirst((v) => !v)}
+        disabled={disabled}
+      >
+        ◆ Plan first
+      </button>
       <textarea
         value={text}
-        placeholder={disabled ? "Select or create a chat to begin…" : `Message ${harnessLabel}…  (Enter to send, Shift+Enter for newline)`}
+        placeholder={
+          disabled
+            ? "Select or create a chat to begin…"
+            : planFirst
+              ? `Describe a task — ${harnessLabel} will propose a plan to review…`
+              : `Message ${harnessLabel}…  (Enter to send, Shift+Enter for newline)`
+        }
         onChange={(e) => setText(e.target.value)}
         onKeyDown={onKey}
         disabled={disabled}
         rows={1}
       />
       <button className="send-btn" onClick={submit} disabled={disabled || !text.trim()}>
-        {busy ? "…" : "Send"}
+        {busy ? "…" : planFirst ? "Plan" : "Send"}
       </button>
     </div>
   );

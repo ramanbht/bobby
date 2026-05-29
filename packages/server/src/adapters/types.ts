@@ -15,6 +15,8 @@ export interface TurnInput {
   model?: string | null;
   /** Per-chat advanced config (agent, custom agents JSON, skills). */
   config?: ChatConfig | null;
+  /** Planning turn: ask for a plan without executing (Claude uses --permission-mode plan). */
+  planMode?: boolean;
   /** Working directory the harness subprocess runs in (its tools operate here). */
   cwd: string;
   /** Aborts the underlying subprocess. */

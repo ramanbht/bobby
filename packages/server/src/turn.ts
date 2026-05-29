@@ -1,4 +1,5 @@
-import type { Chat, Message, MessageMeta, ServerFrame } from "@bobby/shared";
+import { randomUUID } from "node:crypto";
+import type { Chat, Message, MessageMeta, Plan, ServerFrame } from "@bobby/shared";
 import { getAdapter } from "./adapters/index.js";
 import { chatWorkdir, config } from "./config.js";
 import * as db from "./db.js";
@@ -6,33 +7,25 @@ import { distillChat } from "./memory/distill.js";
 
 type Emit = (frame: ServerFrame) => void;
 
-/**
- * Run a single conversational turn for a chat:
- *   persist user msg → stream the harness → persist assistant msg,
- * forwarding every step to the caller as ServerFrames.
- */
-export async function runTurn(chat: Chat, userText: string, emit: Emit): Promise<void> {
-  // History is the conversation *before* this turn (used when not resuming).
-  const history = db.listMessages(chat.id);
+/** Per-chat abort controllers for in-flight plan execution (so "stop" can halt it). */
+const running = new Map<string, AbortController>();
 
+export function stopChat(chatId: string): void {
+  running.get(chatId)?.abort();
+}
+
+/* ------------------------------------------------------------------ */
+/* Normal turn                                                        */
+/* ------------------------------------------------------------------ */
+
+export async function runTurn(chat: Chat, userText: string, emit: Emit): Promise<void> {
+  const history = db.listMessages(chat.id);
   const userMsg = db.addMessage({ chatId: chat.id, role: "user", content: userText });
   emit({ type: "user-message", message: userMsg });
-
-  // Auto-title a fresh chat from its first user message.
-  if (chat.title === "New chat" && history.length === 0) {
-    const title = userText.replace(/\s+/g, " ").trim().slice(0, 60) || "New chat";
-    db.renameChat(chat.id, title);
-  }
-
+  autoTitle(chat, userText, history.length);
   await streamAssistant(chat, userText, history, emit);
 }
 
-/**
- * Edit an existing user message and re-run from there: rewrite the message,
- * discard everything after it, reset the harness-native session, and stream a
- * fresh reply. Context *before* the edited message is replayed by the adapter,
- * so this works the same across every harness.
- */
 export async function editAndRerun(
   chat: Chat,
   messageId: string,
@@ -48,30 +41,116 @@ export async function editAndRerun(
     emit({ type: "error", chatId: chat.id, message: "only user messages can be edited" });
     return;
   }
-
   db.updateMessage(messageId, newText, null);
   db.deleteMessagesAfter(chat.id, target.createdAt);
-  db.clearHarnessSession(chat.id); // branch: next turn starts a fresh native session
+  db.clearHarnessSession(chat.id);
   chat.harnessSessionId = null;
-
   emit({ type: "user-message", message: { ...target, content: newText } });
-
   const history = db.listMessages(chat.id).filter((m) => m.createdAt < target.createdAt);
   await streamAssistant(chat, newText, history, emit);
 }
 
-/** Stream one assistant reply for `promptText` given prior `history`, and persist it. */
+/* ------------------------------------------------------------------ */
+/* Plan-then-execute                                                  */
+/* ------------------------------------------------------------------ */
+
+const PLAN_INSTRUCTIONS =
+  "Before doing anything, produce a concise step-by-step PLAN for the request below. " +
+  "Output a numbered list — one concrete action per line — and nothing else. " +
+  "Do NOT execute any step yet; only plan.\n\nRequest:\n";
+
+/** Propose a plan for the user's request without executing it. */
+export async function runPlan(chat: Chat, userText: string, emit: Emit): Promise<void> {
+  const history = db.listMessages(chat.id);
+  const userMsg = db.addMessage({ chatId: chat.id, role: "user", content: userText });
+  emit({ type: "user-message", message: userMsg });
+  autoTitle(chat, userText, history.length);
+  await streamAssistant(chat, PLAN_INSTRUCTIONS + userText, history, emit, {
+    planMode: true,
+    asPlan: true,
+  });
+}
+
+/** Approve a proposed plan and run its steps one at a time, with live status. */
+export async function executePlan(chat: Chat, messageId: string, emit: Emit): Promise<void> {
+  const planMsg = db.getMessage(messageId);
+  const plan = planMsg?.meta?.plan;
+  if (!planMsg || !plan) {
+    emit({ type: "error", chatId: chat.id, message: "plan not found" });
+    return;
+  }
+
+  const controller = new AbortController();
+  running.set(chat.id, controller);
+  const persistPlan = (next: Plan) => {
+    const updated = db.setMessageMeta(messageId, { ...planMsg.meta, plan: next });
+    emit({ type: "message-update", chatId: chat.id, message: updated });
+  };
+
+  plan.status = "running";
+  persistPlan(plan);
+
+  try {
+    for (const step of plan.steps) {
+      if (controller.signal.aborted) break;
+      step.status = "running";
+      persistPlan(plan);
+
+      const { errored } = await streamAssistant(
+        chat,
+        `Execute step ${plan.steps.indexOf(step) + 1} of the approved plan, then stop:\n${step.text}`,
+        db.listMessages(chat.id),
+        emit,
+        { signal: controller.signal },
+      );
+
+      step.status = errored ? "failed" : "done";
+      persistPlan(plan);
+      if (errored) break;
+    }
+  } finally {
+    plan.status = controller.signal.aborted ? "cancelled" : "done";
+    persistPlan(plan);
+    running.delete(chat.id);
+  }
+}
+
+function parsePlanSteps(text: string): string[] {
+  const steps: string[] = [];
+  for (const raw of text.split("\n")) {
+    const m = raw.match(/^\s*(?:\d+[.)]|[-*])\s+(.+)$/);
+    if (m && m[1].trim()) steps.push(m[1].trim().replace(/\*\*/g, ""));
+  }
+  return steps;
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared streaming core                                              */
+/* ------------------------------------------------------------------ */
+
+interface StreamOpts {
+  planMode?: boolean;
+  /** Parse the result into a proposed plan and attach it to the message meta. */
+  asPlan?: boolean;
+  signal?: AbortSignal;
+}
+
 async function streamAssistant(
   chat: Chat,
   promptText: string,
   history: Message[],
   emit: Emit,
-): Promise<void> {
+  opts: StreamOpts = {},
+): Promise<{ errored: boolean }> {
   const assistant = db.addMessage({ chatId: chat.id, role: "assistant", content: "" });
   emit({ type: "turn-start", chatId: chat.id, messageId: assistant.id });
 
   const adapter = getAdapter(chat.harness);
   const controller = new AbortController();
+  if (opts.signal) {
+    if (opts.signal.aborted) controller.abort();
+    else opts.signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
 
   let deltaBuf = "";
   let textBlock = "";
@@ -87,11 +166,11 @@ async function streamAssistant(
       harnessSessionId: chat.harnessSessionId,
       model: chat.model,
       config: chat.config,
+      planMode: opts.planMode,
       cwd: chatWorkdir(chat.id),
       signal: controller.signal,
     })) {
       emit({ type: "event", chatId: chat.id, messageId: assistant.id, event });
-
       switch (event.type) {
         case "session":
           if (event.sessionId && event.sessionId !== chat.harnessSessionId) {
@@ -132,13 +211,30 @@ async function streamAssistant(
   const finalText = doneText || deltaBuf || textBlock || (errored ? "⚠️ (no response)" : "");
   if (thinking) meta.thinking = thinking;
 
+  if (opts.asPlan && !errored) {
+    const steps = parsePlanSteps(finalText);
+    if (steps.length) {
+      meta.plan = {
+        status: "proposed",
+        steps: steps.map((text) => ({ id: randomUUID(), text, status: "pending" })),
+      };
+    }
+  }
+
   const saved = db.updateMessage(assistant.id, finalText, Object.keys(meta).length ? meta : null);
   emit({ type: "turn-end", chatId: chat.id, message: saved });
 
-  // Auto-distill after a successful turn, if enabled and a vault is configured.
-  if (!errored && config.autoDistill && config.obsidianVault) {
+  if (!errored && !opts.planMode && config.autoDistill && config.obsidianVault) {
     distillChat(chat, db.listMessages(chat.id)).catch((e) =>
       console.error("[distill] auto-distill failed:", (e as Error).message),
     );
+  }
+  return { errored };
+}
+
+function autoTitle(chat: Chat, userText: string, priorCount: number): void {
+  if (chat.title === "New chat" && priorCount === 0) {
+    const title = userText.replace(/\s+/g, " ").trim().slice(0, 60) || "New chat";
+    db.renameChat(chat.id, title);
   }
 }

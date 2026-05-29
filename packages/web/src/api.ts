@@ -3,10 +3,13 @@ import type {
   Chat,
   ChatWithMessages,
   CreateChatRequest,
+  CreateJobRequest,
   DistillResult,
   HarnessInfo,
+  Job,
   ServerConfigInfo,
   UpdateChatRequest,
+  UpdateJobRequest,
 } from "@bobby/shared";
 
 async function json<T>(res: Response): Promise<T> {
@@ -47,4 +50,19 @@ export const api = {
     fetch(`/api/chats/${id}/distill`, { method: "POST" }).then(
       json<(DistillResult & { distilled: true }) | { distilled: false; reason: string }>,
     ),
+  listJobs: () => fetch("/api/jobs").then(json<Job[]>),
+  createJob: (body: CreateJobRequest) =>
+    fetch("/api/jobs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }).then(json<Job>),
+  updateJob: (id: string, body: UpdateJobRequest) =>
+    fetch(`/api/jobs/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }).then(json<Job>),
+  deleteJob: (id: string) => fetch(`/api/jobs/${id}`, { method: "DELETE" }).then(json<{ ok: true }>),
+  runJob: (id: string) => fetch(`/api/jobs/${id}/run`, { method: "POST" }).then(json<{ ok: true }>),
 };

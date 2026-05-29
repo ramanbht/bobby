@@ -7,15 +7,38 @@ import type {
   AppSettings,
   ClientCommand,
   CreateChatRequest,
+  CreateJobRequest,
   ServerFrame,
   UpdateChatRequest,
+  UpdateJobRequest,
 } from "@bobby/shared";
 import { HARNESSES } from "@bobby/shared";
 import { config } from "./config.js";
 import * as db from "./db.js";
 import { distillChat } from "./memory/distill.js";
 import { listHarnessInfo } from "./harness-info.js";
-import { editAndRerun, runTurn } from "./turn.js";
+import { editAndRerun, executePlan, runPlan, runTurn, stopChat } from "./turn.js";
+import {
+  isValidSchedule,
+  runJobNow,
+  scheduleJob,
+  setJobBroadcaster,
+  unscheduleJob,
+} from "./scheduler.js";
+
+/** Every connected websocket, so scheduled-job output can be broadcast to open chats. */
+const sockets = new Set<{ readyState: number; send: (d: string) => void }>();
+function broadcast(frame: ServerFrame): void {
+  const data = JSON.stringify(frame);
+  for (const ws of sockets) {
+    try {
+      if (ws.readyState === 1) ws.send(data);
+    } catch {
+      /* dropped client */
+    }
+  }
+}
+setJobBroadcaster(broadcast);
 
 export function buildServer(opts: { logger?: boolean } = {}) {
   const app = Fastify({ logger: opts.logger === false ? false : { level: "info" } });
@@ -110,6 +133,8 @@ async function routes(app: FastifyInstance) {
   /* ---------------- streaming turns over WS ---------------- */
 
   app.get("/ws", { websocket: true }, (socket) => {
+    sockets.add(socket);
+    socket.on("close", () => sockets.delete(socket));
     const emit = (frame: ServerFrame) => {
       if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(frame));
     };
@@ -126,25 +151,84 @@ async function routes(app: FastifyInstance) {
         return;
       }
 
-      if (cmd.type === "send" || cmd.type === "edit") {
-        const chat = db.getChat(cmd.chatId);
-        if (!chat) {
-          emit({ type: "error", chatId: cmd.chatId, message: "chat not found" });
-          return;
-        }
-        if (!cmd.text?.trim()) {
-          emit({ type: "error", chatId: cmd.chatId, message: "empty message" });
-          return;
-        }
-        const run =
-          cmd.type === "send"
-            ? () => runTurn(chat, cmd.text, emit)
-            : () => editAndRerun(chat, cmd.messageId, cmd.text, emit);
+      // Stop is immediate (not queued behind the running turn).
+      if (cmd.type === "stop") {
+        stopChat(cmd.chatId);
+        return;
+      }
+
+      const chat = db.getChat(cmd.chatId);
+      if (!chat) {
+        emit({ type: "error", chatId: cmd.chatId, message: "chat not found" });
+        return;
+      }
+
+      let run: (() => Promise<void>) | null = null;
+      if (cmd.type === "send") {
+        if (!cmd.text?.trim()) return emit({ type: "error", chatId: cmd.chatId, message: "empty message" });
+        run = () => runTurn(chat, cmd.text, emit);
+      } else if (cmd.type === "edit") {
+        if (!cmd.text?.trim()) return emit({ type: "error", chatId: cmd.chatId, message: "empty message" });
+        run = () => editAndRerun(chat, cmd.messageId, cmd.text, emit);
+      } else if (cmd.type === "plan") {
+        if (!cmd.text?.trim()) return emit({ type: "error", chatId: cmd.chatId, message: "empty message" });
+        run = () => runPlan(chat, cmd.text, emit);
+      } else if (cmd.type === "execute-plan") {
+        run = () => executePlan(chat, cmd.messageId, emit);
+      }
+      if (run) {
         chain = chain
           .then(run)
           .catch((err) => emit({ type: "error", chatId: cmd.chatId, message: (err as Error).message }));
       }
     });
+  });
+
+  /* ---------------- scheduled jobs ---------------- */
+
+  app.get("/api/jobs", async () => db.listJobs());
+
+  app.post<{ Body: CreateJobRequest }>("/api/jobs", async (req, reply) => {
+    const b = req.body ?? ({} as CreateJobRequest);
+    if (!b.harness || !HARNESSES.includes(b.harness)) {
+      return reply.code(400).send({ error: `harness must be one of ${HARNESSES.join(", ")}` });
+    }
+    if (!b.prompt?.trim()) return reply.code(400).send({ error: "prompt is required" });
+    if (!b.schedule || !isValidSchedule(b.schedule)) {
+      return reply.code(400).send({ error: "schedule must be a valid cron expression (e.g. '0 9 * * *')" });
+    }
+    // Each job gets a dedicated chat where its runs are recorded.
+    const chat = db.createChat({ harness: b.harness, title: b.name?.trim() || "Scheduled job", model: b.model });
+    const job = db.createJob({ ...b, chatId: chat.id });
+    scheduleJob(job);
+    return job;
+  });
+
+  app.patch<{ Params: { id: string }; Body: UpdateJobRequest }>("/api/jobs/:id", async (req, reply) => {
+    const patch = req.body ?? {};
+    if (patch.schedule && !isValidSchedule(patch.schedule)) {
+      return reply.code(400).send({ error: "schedule must be a valid cron expression" });
+    }
+    const job = db.updateJob(req.params.id, patch);
+    if (!job) return reply.code(404).send({ error: "job not found" });
+    scheduleJob(job); // reschedule with fresh values (or unschedule if now disabled)
+    return job;
+  });
+
+  app.delete<{ Params: { id: string } }>("/api/jobs/:id", async (req, reply) => {
+    const job = db.getJob(req.params.id);
+    if (!job) return reply.code(404).send({ error: "job not found" });
+    unscheduleJob(job.id);
+    db.deleteJob(job.id);
+    db.deleteChat(job.chatId);
+    return { ok: true };
+  });
+
+  app.post<{ Params: { id: string } }>("/api/jobs/:id/run", async (req, reply) => {
+    const job = db.getJob(req.params.id);
+    if (!job) return reply.code(404).send({ error: "job not found" });
+    runJobNow(job).catch(() => {}); // fire-and-forget; output streams to open clients
+    return { ok: true };
   });
 
   /* ---------------- static web UI (single origin; used by `pnpm start` + desktop) ---------------- */

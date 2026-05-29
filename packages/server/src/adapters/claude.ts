@@ -110,7 +110,7 @@ export const claudeAdapter: HarnessAdapter = {
       "--include-partial-messages",
       "--verbose",
       "--permission-mode",
-      config.claudePermissionMode,
+      input.planMode ? "plan" : config.claudePermissionMode,
     ];
     if (input.model) args.push("--model", input.model);
     if (input.config?.agent) args.push("--agent", input.config.agent);

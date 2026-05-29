@@ -12,6 +12,7 @@ export function Sidebar({
   onCreate,
   onDelete,
   onOpenSettings,
+  onOpenJobs,
 }: {
   chats: Chat[];
   harnesses: HarnessInfo[];
@@ -22,6 +23,7 @@ export function Sidebar({
   onCreate: (body: CreateChatRequest) => void;
   onDelete: (id: string) => void;
   onOpenSettings: () => void;
+  onOpenJobs: () => void;
 }) {
   const [creating, setCreating] = useState(false);
 
@@ -31,6 +33,7 @@ export function Sidebar({
         <FlowerLogo size={26} />
         <span className="brand-name">Bobby</span>
         <span className={`conn conn-${connection}`} title={`socket: ${connection}`} />
+        <button className="icon-btn jobs-btn" onClick={onOpenJobs} title="Scheduled jobs">⏱</button>
         <button className="icon-btn settings-gear" onClick={onOpenSettings} title="Settings">⚙</button>
       </div>
 

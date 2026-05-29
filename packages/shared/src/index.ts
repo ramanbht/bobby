@@ -136,6 +136,29 @@ export interface MessageMeta {
   toolResults?: { id?: string; output: string; isError?: boolean }[];
   thinking?: string;
   usage?: TurnUsage;
+  /** Present when this message is a proposed/executing plan (plan-then-execute mode). */
+  plan?: Plan;
+}
+
+/* ------------------------------------------------------------------ *
+ * Plan-then-execute
+ *
+ * Instead of full-yolo, a turn can first produce a reviewable plan. The user
+ * approves it, then Bobby runs the steps one at a time with visible progress.
+ * ------------------------------------------------------------------ */
+
+export type PlanStatus = "proposed" | "running" | "done" | "cancelled";
+export type StepStatus = "pending" | "running" | "done" | "failed";
+
+export interface PlanStep {
+  id: string;
+  text: string;
+  status: StepStatus;
+}
+
+export interface Plan {
+  status: PlanStatus;
+  steps: PlanStep[];
 }
 
 /* ------------------------------------------------------------------ *
@@ -221,7 +244,32 @@ export interface EditMessageCommand {
   text: string;
 }
 
-export type ClientCommand = SendMessageCommand | EditMessageCommand;
+/** Ask the harness to propose a plan (no execution yet). */
+export interface PlanCommand {
+  type: "plan";
+  chatId: string;
+  text: string;
+}
+
+/** Approve a proposed plan and run its steps one at a time. */
+export interface ExecutePlanCommand {
+  type: "execute-plan";
+  chatId: string;
+  messageId: string;
+}
+
+/** Stop an in-flight plan execution for a chat. */
+export interface StopCommand {
+  type: "stop";
+  chatId: string;
+}
+
+export type ClientCommand =
+  | SendMessageCommand
+  | EditMessageCommand
+  | PlanCommand
+  | ExecutePlanCommand
+  | StopCommand;
 
 /** Server -> client frames during a turn. */
 export type ServerFrame =
@@ -229,4 +277,43 @@ export type ServerFrame =
   | { type: "turn-start"; chatId: string; messageId: string }
   | { type: "event"; chatId: string; messageId: string; event: HarnessEvent }
   | { type: "turn-end"; chatId: string; message: Message }
+  | { type: "message-update"; chatId: string; message: Message }
   | { type: "error"; chatId?: string; message: string };
+
+/* ------------------------------------------------------------------ *
+ * Scheduled jobs (cron)
+ * ------------------------------------------------------------------ */
+
+export interface Job {
+  id: string;
+  name: string;
+  harness: HarnessId;
+  model: string | null;
+  prompt: string;
+  /** Standard 5-field cron expression (e.g. "0 9 * * *"). */
+  schedule: string;
+  enabled: boolean;
+  /** Dedicated chat where each run is recorded. */
+  chatId: string;
+  lastRunAt: string | null;
+  lastStatus: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateJobRequest {
+  name: string;
+  harness: HarnessId;
+  model?: string;
+  prompt: string;
+  schedule: string;
+  enabled?: boolean;
+}
+
+export interface UpdateJobRequest {
+  name?: string;
+  model?: string | null;
+  prompt?: string;
+  schedule?: string;
+  enabled?: boolean;
+}

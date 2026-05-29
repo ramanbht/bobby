@@ -7,11 +7,14 @@ import type {
   Chat,
   ChatConfig,
   ChatWithMessages,
+  CreateJobRequest,
   HarnessId,
+  Job,
   Message,
   MessageMeta,
   Role,
   UpdateChatRequest,
+  UpdateJobRequest,
 } from "@bobby/shared";
 import { DEFAULT_SETTINGS } from "@bobby/shared";
 import { config, ensureDirs } from "./config.js";
@@ -48,6 +51,21 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS jobs (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    harness     TEXT NOT NULL,
+    model       TEXT,
+    prompt      TEXT NOT NULL,
+    schedule    TEXT NOT NULL,
+    enabled     INTEGER NOT NULL DEFAULT 1,
+    chat_id     TEXT NOT NULL,
+    last_run_at TEXT,
+    last_status TEXT,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
   );
 `);
 
@@ -147,7 +165,54 @@ const stmt = {
   ),
   listMessages: db.prepare(`SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at ASC`),
   getMessage: db.prepare(`SELECT * FROM messages WHERE id = ?`),
+  setMessageMeta: db.prepare(`UPDATE messages SET meta = @meta WHERE id = @id`),
+  insertJob: db.prepare(
+    `INSERT INTO jobs (id, name, harness, model, prompt, schedule, enabled, chat_id, last_run_at, last_status, created_at, updated_at)
+     VALUES (@id, @name, @harness, @model, @prompt, @schedule, @enabled, @chat_id, @last_run_at, @last_status, @created_at, @updated_at)`,
+  ),
+  listJobs: db.prepare(`SELECT * FROM jobs ORDER BY created_at DESC`),
+  getJob: db.prepare(`SELECT * FROM jobs WHERE id = ?`),
+  updateJobFields: db.prepare(
+    `UPDATE jobs SET name = @name, model = @model, prompt = @prompt, schedule = @schedule,
+       enabled = @enabled, updated_at = @updated_at WHERE id = @id`,
+  ),
+  setJobRun: db.prepare(
+    `UPDATE jobs SET last_run_at = @last_run_at, last_status = @last_status WHERE id = @id`,
+  ),
+  deleteJob: db.prepare(`DELETE FROM jobs WHERE id = ?`),
 };
+
+interface JobRow {
+  id: string;
+  name: string;
+  harness: string;
+  model: string | null;
+  prompt: string;
+  schedule: string;
+  enabled: number;
+  chat_id: string;
+  last_run_at: string | null;
+  last_status: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function toJob(r: JobRow): Job {
+  return {
+    id: r.id,
+    name: r.name,
+    harness: r.harness as HarnessId,
+    model: r.model,
+    prompt: r.prompt,
+    schedule: r.schedule,
+    enabled: !!r.enabled,
+    chatId: r.chat_id,
+    lastRunAt: r.last_run_at,
+    lastStatus: r.last_status,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
 
 /* ---- public API ---- */
 
@@ -278,6 +343,66 @@ export function updateMessage(
 ): Message {
   stmt.updateMessage.run({ id, content, meta: meta ? JSON.stringify(meta) : null });
   return toMessage(stmt.getMessage.get(id) as MessageRow);
+}
+
+/** Update just a message's meta (e.g. plan step progress), keeping its content. */
+export function setMessageMeta(id: string, meta: MessageMeta | null): Message {
+  stmt.setMessageMeta.run({ id, meta: meta ? JSON.stringify(meta) : null });
+  return toMessage(stmt.getMessage.get(id) as MessageRow);
+}
+
+/* ---- jobs ---- */
+
+export function createJob(input: CreateJobRequest & { chatId: string }): Job {
+  const ts = now();
+  const row: JobRow = {
+    id: uuid(),
+    name: input.name.trim() || "Job",
+    harness: input.harness,
+    model: input.model ?? null,
+    prompt: input.prompt,
+    schedule: input.schedule,
+    enabled: input.enabled === false ? 0 : 1,
+    chat_id: input.chatId,
+    last_run_at: null,
+    last_status: null,
+    created_at: ts,
+    updated_at: ts,
+  };
+  stmt.insertJob.run(row);
+  return toJob(row);
+}
+
+export function listJobs(): Job[] {
+  return (stmt.listJobs.all() as JobRow[]).map(toJob);
+}
+
+export function getJob(id: string): Job | null {
+  const row = stmt.getJob.get(id) as JobRow | undefined;
+  return row ? toJob(row) : null;
+}
+
+export function updateJob(id: string, patch: UpdateJobRequest): Job | null {
+  const cur = getJob(id);
+  if (!cur) return null;
+  stmt.updateJobFields.run({
+    id,
+    name: patch.name?.trim() || cur.name,
+    model: patch.model !== undefined ? patch.model : cur.model,
+    prompt: patch.prompt ?? cur.prompt,
+    schedule: patch.schedule ?? cur.schedule,
+    enabled: (patch.enabled ?? cur.enabled) ? 1 : 0,
+    updated_at: now(),
+  });
+  return getJob(id);
+}
+
+export function setJobRun(id: string, status: string): void {
+  stmt.setJobRun.run({ id, last_run_at: now(), last_status: status });
+}
+
+export function deleteJob(id: string): void {
+  stmt.deleteJob.run(id);
 }
 
 /* ---- settings ---- */

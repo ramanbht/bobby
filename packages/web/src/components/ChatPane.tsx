@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChatWithMessages, HarnessId, HarnessInfo, Message, UpdateChatRequest } from "@bobby/shared";
 import { MessageContent } from "./MessageContent.js";
+import { PlanCard } from "./PlanCard.js";
 
 export function ChatPane({
   chat,
@@ -11,6 +12,8 @@ export function ChatPane({
   onDistill,
   onPatch,
   onEditMessage,
+  onExecutePlan,
+  onStop,
 }: {
   chat: ChatWithMessages;
   harnesses: HarnessInfo[];
@@ -20,6 +23,8 @@ export function ChatPane({
   onDistill: () => void;
   onPatch: (patch: UpdateChatRequest) => void;
   onEditMessage: (messageId: string, text: string) => void;
+  onExecutePlan: (messageId: string) => void;
+  onStop: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showConfig, setShowConfig] = useState(false);
@@ -82,6 +87,8 @@ export function ChatPane({
             message={m}
             busy={busy}
             onEdit={m.role === "user" ? (text) => onEditMessage(m.id, text) : undefined}
+            onApprovePlan={() => onExecutePlan(m.id)}
+            onStop={onStop}
           />
         ))}
       </div>
@@ -182,13 +189,18 @@ function MessageBubble({
   message,
   busy,
   onEdit,
+  onApprovePlan,
+  onStop,
 }: {
   message: Message;
   busy: boolean;
   onEdit?: (text: string) => void;
+  onApprovePlan: () => void;
+  onStop: () => void;
 }) {
   const isUser = message.role === "user";
-  const streaming = !isUser && busy && message.content === "";
+  const plan = message.meta?.plan;
+  const streaming = !isUser && busy && message.content === "" && !plan;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.content);
 
@@ -233,6 +245,8 @@ function MessageBubble({
               <button className="primary-btn" onClick={saveEdit}>Save &amp; re-run</button>
             </div>
           </div>
+        ) : plan ? (
+          <PlanCard plan={plan} onApprove={onApprovePlan} onStop={onStop} />
         ) : (
           <>
             <MessageContent text={message.content} />

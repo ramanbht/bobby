@@ -221,6 +221,61 @@ textarea { resize: vertical; }
 .md-table th { background: #1b1230; color: #f4eeff; font-weight: 600; }
 .md-table tr:last-child td { border-bottom: none; }
 .md-table tbody tr:hover { background: rgba(168, 85, 247, 0.08); }
+
+/* ---------- plan card ---------- */
+.plan-card {
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.10), #120c1e);
+  border: 1px solid rgba(124, 58, 237, 0.5); border-radius: 12px; padding: 14px 16px;
+}
+.plan-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.plan-title { font-weight: 700; color: var(--accent-2); letter-spacing: 0.02em; }
+.plan-status {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim);
+}
+.plan-status.status-running { color: #facc15; border-color: rgba(250, 204, 21, 0.5); }
+.plan-status.status-done { color: var(--ok); border-color: rgba(74, 222, 128, 0.5); }
+.plan-status.status-cancelled { color: var(--danger); border-color: rgba(248, 113, 113, 0.5); }
+.plan-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.plan-step { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.45; }
+.step-icon { flex: none; width: 16px; text-align: center; color: var(--text-dim); }
+.plan-step.step-running .step-icon { color: #facc15; }
+.plan-step.step-done .step-icon { color: var(--ok); }
+.plan-step.step-failed .step-icon { color: var(--danger); }
+.plan-step.step-done .step-text { color: var(--text-dim); }
+.step-icon.spin { display: inline-block; animation: spin 1.2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.plan-actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+
+/* plan toggle in composer */
+.plan-toggle {
+  flex: none; align-self: stretch; background: var(--bg-3); color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 0 12px;
+  font-size: 12.5px; cursor: pointer; white-space: nowrap;
+}
+.plan-toggle.on { color: #160c24; background: var(--accent-2); border-color: var(--accent-2); font-weight: 600; }
+.plan-toggle:hover:not(:disabled) { border-color: var(--accent); }
+
+/* ---------- jobs modal ---------- */
+.modal.modal-wide { width: min(680px, 94vw); }
+.job-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 11px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-3);
+}
+.job-main { min-width: 0; }
+.job-name { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.job-meta { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+.job-meta code { background: #0a0710; border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; color: var(--accent-2); }
+.job-controls { display: flex; align-items: center; gap: 12px; flex: none; }
+.switch { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-dim); cursor: pointer; }
+.link-btn { background: none; border: none; color: var(--accent); font-size: 12.5px; cursor: pointer; padding: 0; }
+.link-btn:hover { color: var(--accent-2); }
+.link-btn.danger { color: var(--text-dim); }
+.link-btn.danger:hover { color: var(--danger); }
+.job-create { margin-top: 6px; }
+.job-create textarea { flex: 1; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px; font: inherit; font-size: 13.5px; resize: vertical; }
+.row-field.align-top { align-items: flex-start; }
+.model-inline { width: 200px; flex: none; }
 .cursor { animation: blink 1s steps(2, start) infinite; color: var(--accent); }
 @keyframes blink { to { visibility: hidden; } }
 

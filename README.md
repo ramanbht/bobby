@@ -36,6 +36,11 @@ is a single adapter file.
 - 🎚️ **Your model, your tools, per chat.** Change the model anytime, attach custom
   **agents** (Claude `--agent`/`--agents`) and **skills** (Hermes/pi) — or set
   defaults once in Settings.
+- 🧭 **Plan, then execute.** Toggle **Plan first** and Bobby proposes a step-by-step
+  plan you review before anything runs — then executes it one step at a time, with
+  live status. Not full-yolo.
+- ⏱️ **Schedule anything.** Run a prompt against any harness on a cron schedule —
+  morning digests, nightly checks — each job recorded in its own chat.
 - 💾 **Your chats are yours.** Every message lands in a local SQLite database you
   own, independent of each harness's own session store.
 - 🧠 **Knowledge, not just transcripts.** Distill any chat into atomic notes written
@@ -57,6 +62,8 @@ is a single adapter file.
 | <img src="docs/screenshots/welcome.png" width="420" alt="Welcome screen" /> | <img src="docs/screenshots/settings.png" width="420" alt="Settings" /> |
 | **Per-chat agents & skills** | **Live streaming + code + cost** |
 | <img src="docs/screenshots/agents.png" width="420" alt="Agents and skills panel" /> | <img src="docs/screenshots/chat.png" width="420" alt="Chat" /> |
+| **Plan, then execute step by step** | **Scheduled cron jobs** |
+| <img src="docs/screenshots/plan.png" width="420" alt="Plan-then-execute" /> | <img src="docs/screenshots/jobs.png" width="420" alt="Scheduled jobs" /> |
 
 ## Quick start
 
@@ -136,6 +143,21 @@ Everything is environment variables (see [`.env.example`](.env.example)) — all
   | Agent | `--agent <name>` | — | — |
   | Custom agents JSON | `--agents <json>` | — | — |
   | Skills | — | `--skills a,b` | `--skill a --skill b` |
+
+## Plan-then-execute
+
+Flip the **◆ Plan first** toggle next to the composer and send a task. Instead of
+acting immediately, the harness returns a numbered plan (Claude uses its native
+`--permission-mode plan`), rendered as a checklist. Review it, hit **Approve & run**,
+and Bobby executes the steps **one at a time** — each step is its own turn with live
+status (○ pending → ◐ running → ✓ done), and you can **Stop** mid-way.
+
+## Scheduled jobs
+
+Open **⏱ Scheduled jobs** in the sidebar to run a prompt on a cron schedule. Pick a
+harness, a model, a prompt, and a schedule (presets like *every day at 9am*, or a raw
+cron expression). Each job records its runs in a dedicated chat, and run output
+streams live into any open window. Toggle jobs on/off, **Run now**, or delete.
 
 ## How it works
 

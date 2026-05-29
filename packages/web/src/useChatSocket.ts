@@ -55,6 +55,10 @@ export function useChatSocket(onFrame: (frame: ServerFrame) => void) {
   const send = (chatId: string, text: string) => post({ type: "send", chatId, text });
   const editMessage = (chatId: string, messageId: string, text: string) =>
     post({ type: "edit", chatId, messageId, text });
+  const plan = (chatId: string, text: string) => post({ type: "plan", chatId, text });
+  const executePlan = (chatId: string, messageId: string) =>
+    post({ type: "execute-plan", chatId, messageId });
+  const stop = (chatId: string) => post({ type: "stop", chatId });
 
-  return { status, send, editMessage };
+  return { status, send, editMessage, plan, executePlan, stop };
 }

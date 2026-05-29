@@ -123,6 +123,37 @@ describe("HTTP API", () => {
     expect(res.statusCode).toBe(400);
   });
 
+  it("creates, lists, toggles and deletes a scheduled job", async () => {
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/jobs",
+      payload: { name: "Daily standup", harness: "claude", model: "sonnet", prompt: "Summarize today", schedule: "0 9 * * *" },
+    });
+    expect(created.statusCode).toBe(200);
+    const job = created.json();
+    expect(job.id).toBeTruthy();
+    expect(job.enabled).toBe(true);
+    expect(job.chatId).toBeTruthy(); // a dedicated chat was created
+
+    const list = await app.inject({ method: "GET", url: "/api/jobs" });
+    expect(list.json().some((j: { id: string }) => j.id === job.id)).toBe(true);
+
+    const toggled = await app.inject({ method: "PATCH", url: `/api/jobs/${job.id}`, payload: { enabled: false } });
+    expect(toggled.json().enabled).toBe(false);
+
+    const del = await app.inject({ method: "DELETE", url: `/api/jobs/${job.id}` });
+    expect(del.statusCode).toBe(200);
+  });
+
+  it("rejects a job with an invalid cron schedule", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/jobs",
+      payload: { name: "Bad", harness: "claude", prompt: "x", schedule: "not a cron" },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
   it("distill without an Obsidian vault is a 400", async () => {
     const created = await app.inject({ method: "POST", url: "/api/chats", payload: { harness: "claude" } });
     const id = created.json().id;

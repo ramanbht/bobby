@@ -1,11 +1,13 @@
 import { buildServer } from "./server.js";
 import { config } from "./config.js";
+import { initScheduler } from "./scheduler.js";
 
 const app = buildServer();
 
 app
   .listen({ port: config.port, host: "0.0.0.0" })
   .then(() => {
+    initScheduler(); // start any enabled cron jobs
     app.log.info(`Bobby server listening on http://localhost:${config.port}`);
     app.log.info(`  db: ${config.dbPath}`);
     app.log.info(

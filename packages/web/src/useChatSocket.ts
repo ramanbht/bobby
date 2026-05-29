@@ -47,12 +47,14 @@ export function useChatSocket(onFrame: (frame: ServerFrame) => void) {
     };
   }, []);
 
-  const send = (chatId: string, text: string) => {
+  const post = (payload: unknown) => {
     const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "send", chatId, text }));
-    }
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload));
   };
 
-  return { status, send };
+  const send = (chatId: string, text: string) => post({ type: "send", chatId, text });
+  const editMessage = (chatId: string, messageId: string, text: string) =>
+    post({ type: "edit", chatId, messageId, text });
+
+  return { status, send, editMessage };
 }

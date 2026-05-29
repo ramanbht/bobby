@@ -1,7 +1,7 @@
 import type { HarnessEvent } from "@bobby/shared";
 import { config } from "../config.js";
 import { spawnLineProcess } from "./proc.js";
-import type { HarnessAdapter, TurnInput } from "./types.js";
+import { promptWithHistory, type HarnessAdapter, type TurnInput } from "./types.js";
 
 /**
  * Parse a single line of Claude's `--output-format stream-json` NDJSON into
@@ -116,7 +116,8 @@ export const claudeAdapter: HarnessAdapter = {
     if (input.config?.agent) args.push("--agent", input.config.agent);
     if (input.config?.agentsJson) args.push("--agents", input.config.agentsJson);
     if (input.harnessSessionId) args.push("-r", input.harnessSessionId);
-    args.push(input.prompt);
+    // Resuming → send only the new message; otherwise replay history for context.
+    args.push(promptWithHistory(input, !!input.harnessSessionId));
 
     const proc = spawnLineProcess(config.bin.claude, args, {
       cwd: input.cwd,

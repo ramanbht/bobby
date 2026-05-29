@@ -14,7 +14,9 @@
     "build": "pnpm --filter @bobby/shared build && pnpm --filter @bobby/server build && pnpm --filter @bobby/web build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm --filter @bobby/shared build && pnpm --filter @bobby/server test",
-    "start": "pnpm --filter @bobby/server start"
+    "start": "pnpm --filter @bobby/server start",
+    "desktop": "pnpm --filter @bobby/desktop dev",
+    "desktop:dist": "pnpm --filter @bobby/desktop dist"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

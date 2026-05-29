@@ -38,3 +38,19 @@ export function renderTranscript(history: Message[]): string {
     .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
     .join("\n\n");
 }
+
+/**
+ * The prompt to send a harness this turn.
+ *
+ * When `resuming` is true the harness still holds the conversation in its own
+ * native session, so we send only the new message. When it's false — a oneshot
+ * harness, the first turn after editing/branching, or right after switching
+ * harness — we replay Bobby's stored history so context isn't lost.
+ */
+export function promptWithHistory(input: TurnInput, resuming: boolean): string {
+  if (resuming) return input.prompt;
+  const transcript = renderTranscript(input.history);
+  return transcript
+    ? `${transcript}\n\nUser: ${input.prompt}\n\nContinue the conversation. Reply as Assistant.`
+    : input.prompt;
+}

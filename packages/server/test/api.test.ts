@@ -81,6 +81,26 @@ describe("HTTP API", () => {
     expect(res.statusCode).toBe(404);
   });
 
+  it("switches the harness of an existing chat and clears the native session", async () => {
+    const created = await app.inject({ method: "POST", url: "/api/chats", payload: { harness: "claude" } });
+    const id = created.json().id;
+    const patched = await app.inject({
+      method: "PATCH",
+      url: `/api/chats/${id}`,
+      payload: { harness: "hermes" },
+    });
+    expect(patched.statusCode).toBe(200);
+    expect(patched.json().harness).toBe("hermes");
+    expect(patched.json().harnessSessionId).toBeNull();
+  });
+
+  it("rejects switching to an invalid harness", async () => {
+    const created = await app.inject({ method: "POST", url: "/api/chats", payload: { harness: "claude" } });
+    const id = created.json().id;
+    const res = await app.inject({ method: "PATCH", url: `/api/chats/${id}`, payload: { harness: "bogus" } });
+    expect(res.statusCode).toBe(400);
+  });
+
   it("gets and updates settings", async () => {
     const initial = await app.inject({ method: "GET", url: "/api/settings" });
     expect(initial.statusCode).toBe(200);

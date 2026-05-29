@@ -1,8 +1,9 @@
+import fs from "node:fs";
 import path from "node:path";
 import type { HarnessEvent } from "@bobby/shared";
 import { config } from "../config.js";
 import { spawnLineProcess } from "./proc.js";
-import type { HarnessAdapter, TurnInput } from "./types.js";
+import { promptWithHistory, type HarnessAdapter, type TurnInput } from "./types.js";
 
 /**
  * pi adapter — uses `pi -p --mode json`, which returns a structured result per
@@ -16,12 +17,14 @@ export const piAdapter: HarnessAdapter = {
 
   async *run(input: TurnInput): AsyncIterable<HarnessEvent> {
     const sessionDir = path.join(input.cwd, ".pi-session");
+    // Resume only when pi actually has a session on disk for this chat. After a
+    // branch/edit the dir is wiped, so we start fresh and replay history instead.
+    const hasSession = fs.existsSync(sessionDir) && fs.readdirSync(sessionDir).length > 0;
     const args = ["-p", "--mode", "json", "--session-dir", sessionDir];
     if (input.model) args.push("--model", input.model);
     for (const skill of input.config?.skills ?? []) args.push("--skill", skill);
-    // A prior turn means a session already exists in this chat's session dir.
-    if (input.history.some((m) => m.role === "assistant")) args.push("--continue");
-    args.push(input.prompt);
+    if (hasSession) args.push("--continue");
+    args.push(promptWithHistory(input, hasSession));
 
     const proc = spawnLineProcess(config.bin.pi, args, {
       cwd: input.cwd,

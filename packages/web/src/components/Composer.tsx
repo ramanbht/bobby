@@ -3,10 +3,12 @@ import { useState, type KeyboardEvent } from "react";
 export function Composer({
   disabled,
   busy,
+  harnessLabel,
   onSend,
 }: {
   disabled: boolean;
   busy: boolean;
+  harnessLabel: string;
   onSend: (text: string) => void;
 }) {
   const [text, setText] = useState("");
@@ -29,7 +31,7 @@ export function Composer({
     <div className="composer">
       <textarea
         value={text}
-        placeholder={disabled ? "Select or create a chat to begin…" : "Message your harness…  (Enter to send, Shift+Enter for newline)"}
+        placeholder={disabled ? "Select or create a chat to begin…" : `Message ${harnessLabel}…  (Enter to send, Shift+Enter for newline)`}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={onKey}
         disabled={disabled}

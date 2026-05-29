@@ -1,20 +1,24 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { ChatWithMessages, Message, UpdateChatRequest } from "@bobby/shared";
+import type { ChatWithMessages, HarnessId, HarnessInfo, Message, UpdateChatRequest } from "@bobby/shared";
 
 export function ChatPane({
   chat,
+  harnesses,
   busy,
   obsidianConfigured,
   distillNote,
   onDistill,
   onPatch,
+  onEditMessage,
 }: {
   chat: ChatWithMessages;
+  harnesses: HarnessInfo[];
   busy: boolean;
   obsidianConfigured: boolean;
   distillNote: string | null;
   onDistill: () => void;
   onPatch: (patch: UpdateChatRequest) => void;
+  onEditMessage: (messageId: string, text: string) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showConfig, setShowConfig] = useState(false);
@@ -29,7 +33,18 @@ export function ChatPane({
         <div className="chat-header-left">
           <div className="chat-header-title">{chat.title}</div>
           <div className="chat-header-meta">
-            <span className="badge">{chat.harness}</span>
+            <select
+              className="harness-select"
+              value={chat.harness}
+              title="Harness for this chat"
+              onChange={(e) => onPatch({ harness: e.target.value as HarnessId })}
+            >
+              {harnesses.map((h) => (
+                <option key={h.id} value={h.id} disabled={!h.available}>
+                  {h.label}{h.available ? "" : " (not installed)"}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -61,7 +76,12 @@ export function ChatPane({
           <div className="empty-conv">Say something to {chat.harness}.</div>
         )}
         {chat.messages.map((m) => (
-          <MessageBubble key={m.id} message={m} busy={busy} />
+          <MessageBubble
+            key={m.id}
+            message={m}
+            busy={busy}
+            onEdit={m.role === "user" ? (text) => onEditMessage(m.id, text) : undefined}
+          />
         ))}
       </div>
     </section>
@@ -157,23 +177,75 @@ function ConfigPanel({ chat, onPatch }: { chat: ChatWithMessages; onPatch: (p: U
   );
 }
 
-function MessageBubble({ message, busy }: { message: Message; busy: boolean }) {
+function MessageBubble({
+  message,
+  busy,
+  onEdit,
+}: {
+  message: Message;
+  busy: boolean;
+  onEdit?: (text: string) => void;
+}) {
   const isUser = message.role === "user";
   const streaming = !isUser && busy && message.content === "";
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(message.content);
+
+  useEffect(() => setDraft(message.content), [message.content]);
+
+  const startEdit = () => {
+    setDraft(message.content);
+    setEditing(true);
+  };
+  const saveEdit = () => {
+    const text = draft.trim();
+    setEditing(false);
+    if (text && text !== message.content) onEdit?.(text);
+  };
+
   return (
     <div className={`msg msg-${message.role}`}>
-      <div className="msg-role">{isUser ? "You" : "Assistant"}</div>
+      <div className="msg-role">
+        {isUser ? "You" : "Assistant"}
+        {onEdit && !editing && !busy && (
+          <button className="edit-btn" title="Edit & re-run from here" onClick={startEdit}>
+            ✎ edit
+          </button>
+        )}
+      </div>
       <div className="msg-body">
-        {renderContent(message.content)}
-        {streaming && <span className="cursor">▋</span>}
-        {message.meta?.toolCalls?.length ? (
-          <div className="tool-note">
-            🔧 used {message.meta.toolCalls.length} tool
-            {message.meta.toolCalls.length > 1 ? "s" : ""}: {message.meta.toolCalls.map((t) => t.name).join(", ")}
+        {editing ? (
+          <div className="msg-edit">
+            <textarea
+              className="msg-edit-input"
+              value={draft}
+              autoFocus
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveEdit();
+                if (e.key === "Escape") setEditing(false);
+              }}
+            />
+            <div className="msg-edit-actions">
+              <span className="muted">⌘↵ to save & re-run</span>
+              <button className="ghost-btn" onClick={() => setEditing(false)}>Cancel</button>
+              <button className="primary-btn" onClick={saveEdit}>Save &amp; re-run</button>
+            </div>
           </div>
-        ) : null}
-        {message.meta?.usage?.costUsd != null && (
-          <div className="usage-note">${message.meta.usage.costUsd.toFixed(4)}</div>
+        ) : (
+          <>
+            {renderContent(message.content)}
+            {streaming && <span className="cursor">▋</span>}
+            {message.meta?.toolCalls?.length ? (
+              <div className="tool-note">
+                🔧 used {message.meta.toolCalls.length} tool
+                {message.meta.toolCalls.length > 1 ? "s" : ""}: {message.meta.toolCalls.map((t) => t.name).join(", ")}
+              </div>
+            ) : null}
+            {message.meta?.usage?.costUsd != null && (
+              <div className="usage-note">${message.meta.usage.costUsd.toFixed(4)}</div>
+            )}
+          </>
         )}
       </div>
     </div>

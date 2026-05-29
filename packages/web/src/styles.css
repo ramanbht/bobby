@@ -184,6 +184,32 @@ textarea { resize: vertical; }
 .cursor { animation: blink 1s steps(2, start) infinite; color: var(--accent); }
 @keyframes blink { to { visibility: hidden; } }
 
+/* harness switcher in the chat header */
+.harness-select {
+  background: var(--bg-3); color: var(--text); border: 1px solid var(--border);
+  border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer;
+}
+.harness-select:hover { border-color: var(--accent); }
+
+/* edit affordance + inline editor on user messages */
+.msg-role { display: flex; align-items: center; gap: 8px; }
+.edit-btn {
+  background: none; border: none; color: var(--text-dim); font-size: 11px;
+  cursor: pointer; opacity: 0; transition: opacity 0.12s; padding: 0;
+}
+.msg:hover .edit-btn { opacity: 1; }
+.edit-btn:hover { color: var(--accent-2); }
+.msg-edit { display: flex; flex-direction: column; gap: 8px; }
+.msg-edit-input {
+  width: 100%; resize: vertical; min-height: 64px; background: var(--bg);
+  color: var(--text); border: 1px solid var(--accent); border-radius: 8px;
+  padding: 9px 11px; font: inherit; font-size: 14.5px;
+}
+.msg-edit-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.msg-edit-actions .muted { margin-right: auto; }
+.msg-edit-actions .primary-btn,
+.msg-edit-actions .ghost-btn { padding: 6px 12px; font-size: 13px; }
+
 /* ---------- composer ---------- */
 .composer { display: flex; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); background: var(--bg-2); }
 .composer textarea {

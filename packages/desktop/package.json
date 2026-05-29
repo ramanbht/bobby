@@ -1,0 +1,38 @@
+{
+  "name": "@bobby/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bobby as a native desktop app (Electron) — one window over your local harnesses.",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prep": "pnpm --filter @bobby/shared build && pnpm --filter @bobby/server build && pnpm --filter @bobby/web build && pnpm run build",
+    "start": "electron .",
+    "dev": "pnpm run prep && electron .",
+    "dist": "pnpm run prep && electron-builder"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.6.3"
+  },
+  "build": {
+    "appId": "dev.bobby.app",
+    "productName": "Bobby",
+    "directories": { "output": "release" },
+    "files": ["dist/**"],
+    "extraResources": [
+      { "from": "../server/dist", "to": "server/dist" },
+      { "from": "../web/dist", "to": "web/dist" }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icon.png",
+      "target": ["dmg"]
+    },
+    "win": { "icon": "build/icon.png", "target": ["nsis"] },
+    "linux": { "icon": "build/icon.png", "target": ["AppImage"], "category": "Development" }
+  }
+}

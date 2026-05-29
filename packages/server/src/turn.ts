@@ -1,4 +1,4 @@
-import type { Chat, MessageMeta, ServerFrame } from "@bobby/shared";
+import type { Chat, Message, MessageMeta, ServerFrame } from "@bobby/shared";
 import { getAdapter } from "./adapters/index.js";
 import { chatWorkdir, config } from "./config.js";
 import * as db from "./db.js";
@@ -12,7 +12,7 @@ type Emit = (frame: ServerFrame) => void;
  * forwarding every step to the caller as ServerFrames.
  */
 export async function runTurn(chat: Chat, userText: string, emit: Emit): Promise<void> {
-  // History is the conversation *before* this turn (used by oneshot harnesses).
+  // History is the conversation *before* this turn (used when not resuming).
   const history = db.listMessages(chat.id);
 
   const userMsg = db.addMessage({ chatId: chat.id, role: "user", content: userText });
@@ -24,7 +24,49 @@ export async function runTurn(chat: Chat, userText: string, emit: Emit): Promise
     db.renameChat(chat.id, title);
   }
 
-  // Assistant placeholder so the UI has a stable id to stream into.
+  await streamAssistant(chat, userText, history, emit);
+}
+
+/**
+ * Edit an existing user message and re-run from there: rewrite the message,
+ * discard everything after it, reset the harness-native session, and stream a
+ * fresh reply. Context *before* the edited message is replayed by the adapter,
+ * so this works the same across every harness.
+ */
+export async function editAndRerun(
+  chat: Chat,
+  messageId: string,
+  newText: string,
+  emit: Emit,
+): Promise<void> {
+  const target = db.getMessage(messageId);
+  if (!target || target.chatId !== chat.id) {
+    emit({ type: "error", chatId: chat.id, message: "message not found" });
+    return;
+  }
+  if (target.role !== "user") {
+    emit({ type: "error", chatId: chat.id, message: "only user messages can be edited" });
+    return;
+  }
+
+  db.updateMessage(messageId, newText, null);
+  db.deleteMessagesAfter(chat.id, target.createdAt);
+  db.clearHarnessSession(chat.id); // branch: next turn starts a fresh native session
+  chat.harnessSessionId = null;
+
+  emit({ type: "user-message", message: { ...target, content: newText } });
+
+  const history = db.listMessages(chat.id).filter((m) => m.createdAt < target.createdAt);
+  await streamAssistant(chat, newText, history, emit);
+}
+
+/** Stream one assistant reply for `promptText` given prior `history`, and persist it. */
+async function streamAssistant(
+  chat: Chat,
+  promptText: string,
+  history: Message[],
+  emit: Emit,
+): Promise<void> {
   const assistant = db.addMessage({ chatId: chat.id, role: "assistant", content: "" });
   emit({ type: "turn-start", chatId: chat.id, messageId: assistant.id });
 
@@ -40,7 +82,7 @@ export async function runTurn(chat: Chat, userText: string, emit: Emit): Promise
 
   try {
     for await (const event of adapter.run({
-      prompt: userText,
+      prompt: promptText,
       history,
       harnessSessionId: chat.harnessSessionId,
       model: chat.model,
@@ -90,11 +132,7 @@ export async function runTurn(chat: Chat, userText: string, emit: Emit): Promise
   const finalText = doneText || deltaBuf || textBlock || (errored ? "⚠️ (no response)" : "");
   if (thinking) meta.thinking = thinking;
 
-  const saved = db.updateMessage(
-    assistant.id,
-    finalText,
-    Object.keys(meta).length ? meta : null,
-  );
+  const saved = db.updateMessage(assistant.id, finalText, Object.keys(meta).length ? meta : null);
   emit({ type: "turn-end", chatId: chat.id, message: saved });
 
   // Auto-distill after a successful turn, if enabled and a vault is configured.

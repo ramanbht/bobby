@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseClaudeStreamLine } from "../src/adapters/claude.js";
 import { extractText, pluckText } from "../src/adapters/pi.js";
-import { renderTranscript } from "../src/adapters/types.js";
+import { promptWithHistory, renderTranscript } from "../src/adapters/types.js";
 import { parseNote } from "../src/memory/distill.js";
 import { slugifyTitle } from "../src/memory/obsidian.js";
 import type { Message } from "@bobby/shared";
@@ -118,5 +118,28 @@ describe("renderTranscript", () => {
       { role: "assistant", content: "hi there" },
     ] as Message[];
     expect(renderTranscript(msgs)).toBe("User: hello\n\nAssistant: hi there");
+  });
+});
+
+describe("promptWithHistory", () => {
+  const base = { prompt: "next", history: [], cwd: "/tmp", signal: new AbortController().signal };
+  const history = [
+    { role: "user", content: "a" },
+    { role: "assistant", content: "b" },
+  ] as Message[];
+
+  it("sends only the new prompt when resuming a native session", () => {
+    expect(promptWithHistory({ ...base, history }, true)).toBe("next");
+  });
+
+  it("replays prior history when not resuming (branch / oneshot / harness switch)", () => {
+    const out = promptWithHistory({ ...base, history }, false);
+    expect(out).toContain("User: a");
+    expect(out).toContain("Assistant: b");
+    expect(out).toContain("User: next");
+  });
+
+  it("sends only the prompt when there is no history", () => {
+    expect(promptWithHistory({ ...base, history: [] }, false)).toBe("next");
   });
 });

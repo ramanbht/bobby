@@ -18,3 +18,6 @@ data/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Electron build output
+packages/desktop/release/

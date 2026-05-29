@@ -1,5 +1,7 @@
+import fs from "node:fs";
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
+import fstatic from "@fastify/static";
 import websocket from "@fastify/websocket";
 import type {
   AppSettings,
@@ -13,7 +15,7 @@ import { config } from "./config.js";
 import * as db from "./db.js";
 import { distillChat } from "./memory/distill.js";
 import { listHarnessInfo } from "./harness-info.js";
-import { runTurn } from "./turn.js";
+import { editAndRerun, runTurn } from "./turn.js";
 
 export function buildServer(opts: { logger?: boolean } = {}) {
   const app = Fastify({ logger: opts.logger === false ? false : { level: "info" } });
@@ -74,7 +76,11 @@ async function routes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: UpdateChatRequest }>(
     "/api/chats/:id",
     async (req, reply) => {
-      const updated = db.updateChat(req.params.id, req.body ?? {});
+      const patch = req.body ?? {};
+      if (patch.harness && !HARNESSES.includes(patch.harness)) {
+        return reply.code(400).send({ error: `harness must be one of ${HARNESSES.join(", ")}` });
+      }
+      const updated = db.updateChat(req.params.id, patch);
       if (!updated) return reply.code(404).send({ error: "chat not found" });
       return updated;
     },
@@ -120,7 +126,7 @@ async function routes(app: FastifyInstance) {
         return;
       }
 
-      if (cmd.type === "send") {
+      if (cmd.type === "send" || cmd.type === "edit") {
         const chat = db.getChat(cmd.chatId);
         if (!chat) {
           emit({ type: "error", chatId: cmd.chatId, message: "chat not found" });
@@ -130,10 +136,27 @@ async function routes(app: FastifyInstance) {
           emit({ type: "error", chatId: cmd.chatId, message: "empty message" });
           return;
         }
+        const run =
+          cmd.type === "send"
+            ? () => runTurn(chat, cmd.text, emit)
+            : () => editAndRerun(chat, cmd.messageId, cmd.text, emit);
         chain = chain
-          .then(() => runTurn(chat, cmd.text, emit))
+          .then(run)
           .catch((err) => emit({ type: "error", chatId: cmd.chatId, message: (err as Error).message }));
       }
     });
   });
+
+  /* ---------------- static web UI (single origin; used by `pnpm start` + desktop) ---------------- */
+
+  if (fs.existsSync(config.webDist)) {
+    await app.register(fstatic, { root: config.webDist, wildcard: false });
+    app.setNotFoundHandler((req, reply) => {
+      // API/WS misses stay JSON 404; any other GET falls back to the SPA shell.
+      if (req.method !== "GET" || req.url.startsWith("/api") || req.url.startsWith("/ws")) {
+        return reply.code(404).send({ error: "not found" });
+      }
+      return reply.sendFile("index.html");
+    });
+  }
 }

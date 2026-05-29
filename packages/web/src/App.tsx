@@ -45,9 +45,15 @@ export function App() {
       setActive((cur) => {
         if (!cur) return cur;
         switch (frame.type) {
-          case "user-message":
+          case "user-message": {
             if (frame.message.chatId !== cur.id) return cur;
-            return { ...cur, messages: [...cur.messages, frame.message] };
+            // Upsert by id: a fresh send appends; an edit replaces in place.
+            const exists = cur.messages.some((m) => m.id === frame.message.id);
+            const messages = exists
+              ? cur.messages.map((m) => (m.id === frame.message.id ? frame.message : m))
+              : [...cur.messages, frame.message];
+            return { ...cur, messages };
+          }
           case "turn-start": {
             if (frame.chatId !== cur.id) return cur;
             const placeholder: Message = {
@@ -86,7 +92,7 @@ export function App() {
     [],
   );
 
-  const { status, send } = useChatSocket(onFrame);
+  const { status, send, editMessage } = useChatSocket(onFrame);
 
   /* ---- actions ---- */
   const selectChat = async (id: string) => {
@@ -125,6 +131,23 @@ export function App() {
     send(active.id, text);
   };
 
+  const editAndResend = (messageId: string, text: string) => {
+    if (!active) return;
+    setBusy(true);
+    // Optimistically rewrite the message and drop everything after it; the
+    // server truncates to match and streams a fresh reply.
+    setActive((cur) => {
+      if (!cur) return cur;
+      const idx = cur.messages.findIndex((m) => m.id === messageId);
+      if (idx === -1) return cur;
+      const messages = cur.messages
+        .slice(0, idx + 1)
+        .map((m) => (m.id === messageId ? { ...m, content: text } : m));
+      return { ...cur, messages };
+    });
+    editMessage(active.id, messageId, text);
+  };
+
   const distill = async () => {
     if (!active) return;
     setDistillNote("Distilling…");
@@ -158,13 +181,20 @@ export function App() {
           <>
             <ChatPane
               chat={active}
+              harnesses={harnesses}
               busy={busy}
               obsidianConfigured={!!serverConfig?.obsidianConfigured}
               distillNote={distillNote}
               onDistill={distill}
               onPatch={patchChat}
+              onEditMessage={editAndResend}
             />
-            <Composer disabled={false} busy={busy} onSend={sendMessage} />
+            <Composer
+              disabled={false}
+              busy={busy}
+              harnessLabel={harnesses.find((h) => h.id === active.harness)?.label ?? active.harness}
+              onSend={sendMessage}
+            />
           </>
         ) : (
           <Welcome harnesses={harnesses} />

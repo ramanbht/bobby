@@ -1,7 +1,7 @@
 import type { HarnessEvent } from "@bobby/shared";
 import { config } from "../config.js";
 import { runToString } from "./proc.js";
-import { renderTranscript, type HarnessAdapter, type TurnInput } from "./types.js";
+import { promptWithHistory, type HarnessAdapter, type TurnInput } from "./types.js";
 
 /**
  * Hermes adapter — uses oneshot mode (`hermes -z`), which prints only the
@@ -15,10 +15,8 @@ export const hermesAdapter: HarnessAdapter = {
   streaming: false,
 
   async *run(input: TurnInput): AsyncIterable<HarnessEvent> {
-    const transcript = renderTranscript(input.history);
-    const prompt = transcript
-      ? `${transcript}\n\nUser: ${input.prompt}\n\nContinue the conversation. Reply as Assistant.`
-      : input.prompt;
+    // Hermes oneshot has no resumable session, so always replay Bobby's history.
+    const prompt = promptWithHistory(input, false);
 
     const args = ["-z", prompt, "--accept-hooks"];
     if (input.model) args.push("-m", input.model);

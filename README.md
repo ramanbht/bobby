@@ -1,20 +1,18 @@
 <div align="center">
 
-<img src="docs/flower.svg" width="92" alt="Bobby logo" />
+# 🌸 Bobby
 
-# Bobby
+**One chat dashboard over the LLM harnesses you already run.**
 
-**One chat dashboard over the LLM coding agents you already have.**
-
-Talk to **Claude Code**, **Hermes**, and **pi** from a single window — every chat
-saved to your own database, every conversation distillable into your **Obsidian**
-knowledge base.
+Talk to **Claude Code**, **Hermes**, **pi** — or any harness you add — from a single
+window. Every chat saved to your own database; every conversation distillable into
+your **Obsidian** knowledge base.
 
 <p>
   <img alt="license" src="https://img.shields.io/badge/license-MIT-7c3aed" />
   <img alt="typescript" src="https://img.shields.io/badge/TypeScript-strict-3178c6" />
   <img alt="node" src="https://img.shields.io/badge/node-%E2%89%A520-339933" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-29%20passing-4ade80" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-34%20passing-4ade80" />
 </p>
 
 <img src="docs/screenshots/stream.gif" width="860" alt="Bobby — a live streaming turn" />
@@ -27,12 +25,14 @@ knowledge base.
 
 ## Why Bobby?
 
-You already have great coding agents installed. What you *don't* have is one place
-to use them, compare them, and keep everything they tell you. Bobby is that place —
-a thin, local-first dashboard that drives the harness CLIs you already trust.
+You already run powerful LLM harnesses on your machine — coding agents and beyond.
+What you *don't* have is one place to use them, compare them, and keep everything
+they tell you. Bobby is that place — a thin, local-first dashboard that drives the
+harness CLIs you already trust. Any harness works, not just coding ones; adding one
+is a single adapter file.
 
-- 🪟 **One window over many agents.** Switch harness per chat; ask all three the
-  same question and compare.
+- 🪟 **One window over many harnesses.** Switch harness *mid-chat*; ask all three
+  the same question and compare.
 - 🎚️ **Your model, your tools, per chat.** Change the model anytime, attach custom
   **agents** (Claude `--agent`/`--agents`) and **skills** (Hermes/pi) — or set
   defaults once in Settings.
@@ -77,7 +77,20 @@ pnpm dev                # ▶ web UI on http://localhost:5173, API on :8787
 </details>
 
 > Other commands: `pnpm test` (run the suite), `pnpm build` then `pnpm start`
-> (production), `pnpm typecheck`.
+> (production — serves UI + API on one origin at http://localhost:8787), `pnpm typecheck`.
+
+## Desktop app
+
+Prefer a native window over a browser tab?
+
+```bash
+pnpm desktop      # opens Bobby in its own window (Electron) — boots the server for you
+```
+
+Building distributable installers (`.dmg` / `.exe` / `AppImage`) is wired via
+`pnpm desktop:dist` (electron-builder); bundling the native SQLite module into the
+installer is still being smoothed out, so `pnpm desktop` is the recommended way to
+run the app today.
 
 ## Configuration
 
@@ -99,6 +112,10 @@ Everything is environment variables (see [`.env.example`](.env.example)) — all
   and default agent/skills for new chats. Stored server-side.
 - **Per-chat model** — the model field in the chat header is editable anytime; the
   next turn uses it.
+- **Switch harness mid-chat** — the harness dropdown in the chat header; Bobby
+  replays the conversation to the new harness so context carries over.
+- **Edit & re-run** — hover any message you sent and hit **✎ edit**: Bobby rewrites
+  it, discards everything after, and re-runs the conversation from that point.
 - **Agents & skills (⚙ in the chat header)** — per harness, best-effort:
 
   | Field | Claude | Hermes | pi |

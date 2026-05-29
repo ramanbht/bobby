@@ -26,6 +26,8 @@ export interface Config {
   obsidianFolder: string;
   distillHarness: HarnessId;
   autoDistill: boolean;
+  /** Built web UI to serve (so one origin serves UI + API; used by the desktop app). */
+  webDist: string;
 }
 
 export const config: Config = {
@@ -42,6 +44,7 @@ export const config: Config = {
   obsidianFolder: process.env.OBSIDIAN_FOLDER ?? "Bobby",
   distillHarness: (process.env.BOBBY_DISTILL_HARNESS as HarnessId) ?? "claude",
   autoDistill: bool(process.env.BOBBY_AUTO_DISTILL, false),
+  webDist: process.env.BOBBY_WEB_DIST ?? path.resolve(pkgRoot, "../web/dist"),
 };
 
 /** Ensure the runtime data directories exist. */

@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import Database from "better-sqlite3";
 import { v4 as uuid } from "uuid";
 import type {
@@ -121,9 +123,16 @@ const stmt = {
   ),
   setTitle: db.prepare(`UPDATE chats SET title = @title, updated_at = @updated_at WHERE id = @id`),
   updateChatFields: db.prepare(
-    `UPDATE chats SET title = @title, model = @model, config = @config, updated_at = @updated_at WHERE id = @id`,
+    `UPDATE chats SET title = @title, harness = @harness, model = @model, config = @config,
+       harness_session_id = @harness_session_id, updated_at = @updated_at WHERE id = @id`,
+  ),
+  clearSession: db.prepare(
+    `UPDATE chats SET harness_session_id = NULL, updated_at = @updated_at WHERE id = @id`,
   ),
   deleteChat: db.prepare(`DELETE FROM chats WHERE id = ?`),
+  deleteMessagesAfter: db.prepare(
+    `DELETE FROM messages WHERE chat_id = @chat_id AND created_at > @after`,
+  ),
   getSetting: db.prepare(`SELECT value FROM settings WHERE key = ?`),
   setSetting: db.prepare(
     `INSERT INTO settings (key, value) VALUES (@key, @value)
@@ -163,20 +172,35 @@ export function createChat(input: {
   return toChat(chat);
 }
 
-/** Apply a partial update to a chat's title/model/config. Returns the updated chat. */
+/** Per-chat directory where pi keeps its native session (wiped when continuity breaks). */
+function piSessionDir(chatId: string): string {
+  return path.join(config.workspacesDir, chatId, ".pi-session");
+}
+
+/**
+ * Apply a partial update to a chat's title/harness/model/config. Changing the
+ * harness invalidates the previous harness-native session, so we clear it (and
+ * wipe pi's session dir); Bobby's stored history replays context on the next turn.
+ * Returns the updated chat.
+ */
 export function updateChat(id: string, patch: UpdateChatRequest): Chat | null {
   const current = getChat(id);
   if (!current) return null;
+  const harness = patch.harness ?? current.harness;
+  const harnessChanged = harness !== current.harness;
   const title = patch.title?.trim() || current.title;
   const model = patch.model !== undefined ? patch.model : current.model;
-  const config = patch.config !== undefined ? patch.config : current.config;
+  const cfg = patch.config !== undefined ? patch.config : current.config;
   stmt.updateChatFields.run({
     id,
     title,
+    harness,
     model: model ?? null,
-    config: config ? JSON.stringify(config) : null,
+    config: cfg ? JSON.stringify(cfg) : null,
+    harness_session_id: harnessChanged ? null : current.harnessSessionId,
     updated_at: now(),
   });
+  if (harnessChanged) fs.rmSync(piSessionDir(id), { recursive: true, force: true });
   return getChat(id);
 }
 
@@ -197,6 +221,22 @@ export function getChatWithMessages(id: string): ChatWithMessages | null {
 
 export function listMessages(chatId: string): Message[] {
   return (stmt.listMessages.all(chatId) as MessageRow[]).map(toMessage);
+}
+
+export function getMessage(id: string): Message | null {
+  const row = stmt.getMessage.get(id) as MessageRow | undefined;
+  return row ? toMessage(row) : null;
+}
+
+/** Delete every message in a chat created strictly after the given timestamp. */
+export function deleteMessagesAfter(chatId: string, after: string): void {
+  stmt.deleteMessagesAfter.run({ chat_id: chatId, after });
+}
+
+/** Clear the harness-native session and wipe pi's session dir (e.g. when branching). */
+export function clearHarnessSession(chatId: string): void {
+  stmt.clearSession.run({ id: chatId, updated_at: now() });
+  fs.rmSync(piSessionDir(chatId), { recursive: true, force: true });
 }
 
 export function deleteChat(id: string): void {

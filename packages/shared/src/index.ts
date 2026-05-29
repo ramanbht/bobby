@@ -152,6 +152,7 @@ export interface CreateChatRequest {
 /** Patch an existing chat. Any provided field is updated; omitted fields are left as-is. */
 export interface UpdateChatRequest {
   title?: string;
+  harness?: HarnessId;
   model?: string | null;
   config?: ChatConfig | null;
 }
@@ -208,7 +209,19 @@ export interface SendMessageCommand {
   text: string;
 }
 
-export type ClientCommand = SendMessageCommand;
+/**
+ * Client edits an existing user message and re-runs from there: the server
+ * rewrites that message, discards everything after it, and streams a fresh
+ * assistant reply.
+ */
+export interface EditMessageCommand {
+  type: "edit";
+  chatId: string;
+  messageId: string;
+  text: string;
+}
+
+export type ClientCommand = SendMessageCommand | EditMessageCommand;
 
 /** Server -> client frames during a turn. */
 export type ServerFrame =

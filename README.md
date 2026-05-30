@@ -112,6 +112,31 @@ is fully self-contained.
 > want to run `pnpm dev` / `pnpm test` (which use system Node), run `pnpm install`
 > once to restore it.
 
+## Updating
+
+Bobby updates by pulling the repo and restarting — there's no auto-updater. **Your
+chats are safe:** they live in `~/Library/Application Support/Bobby` (see
+[Configuration](#configuration)), separate from the code you pull.
+
+```bash
+pnpm refresh          # git pull (fast-forward) + pnpm install + pnpm build
+```
+
+Then restart however you run Bobby:
+
+| You run Bobby with… | Update with |
+|---|---|
+| `pnpm dev` | stop it, then `pnpm refresh && pnpm dev` |
+| `pnpm start` | stop it, then `pnpm refresh && pnpm start` |
+| **launchd daemon** | `pnpm daemon:update` — refresh **and** reload the daemon in one step |
+| `pnpm desktop` (from source) | quit it (tray 🌸 → Quit), then `pnpm refresh && pnpm desktop` |
+| installed `.dmg`/`.exe` | `pnpm refresh && pnpm desktop:dist`, then open the new file in `packages/desktop/release/` |
+
+`pnpm refresh` uses `git pull --ff-only`, so it stops cleanly if your working tree
+has local commits/changes instead of creating a merge. If `pnpm install` ever leaves
+the native SQLite module mismatched (an ABI error on boot), run `pnpm install` again
+or `pnpm rebuild better-sqlite3`.
+
 ## Configuration
 
 Everything is environment variables (see [`.env.example`](.env.example)) — all optional:

@@ -119,9 +119,17 @@ export const claudeAdapter: HarnessAdapter = {
     // Resuming → send only the new message; otherwise replay history for context.
     args.push(promptWithHistory(input, !!input.harnessSessionId));
 
+    // Claude Code only emits thinking blocks when extended thinking is on;
+    // MAX_THINKING_TOKENS sets the budget (and turns it on). 0 ⇒ leave it off.
+    const env =
+      config.claudeThinkingTokens > 0
+        ? { MAX_THINKING_TOKENS: String(config.claudeThinkingTokens) }
+        : undefined;
+
     const proc = spawnLineProcess(config.bin.claude, args, {
       cwd: input.cwd,
       signal: input.signal,
+      env,
     });
 
     let terminal = false;

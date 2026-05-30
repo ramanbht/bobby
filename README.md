@@ -151,6 +151,7 @@ Everything is environment variables (see [`.env.example`](.env.example)) — all
 | `BOBBY_DISTILL_HARNESS` | `claude` | Harness used for the distillation pass |
 | `BOBBY_AUTO_DISTILL` | `false` | Distill automatically after each turn |
 | `BOBBY_CLAUDE_PERMISSION_MODE` | `acceptEdits` | Claude tool-permission mode |
+| `BOBBY_CLAUDE_THINKING_TOKENS` | `4096` | Claude extended-thinking budget — shows the model's 💭 reasoning. `0` disables |
 
 > ¹ `<app-data>` is your OS application-data dir — macOS `~/Library/Application Support/Bobby`,
 > Windows `%APPDATA%\Bobby`, Linux `$XDG_DATA_HOME/Bobby` (or `~/.local/share/Bobby`). The

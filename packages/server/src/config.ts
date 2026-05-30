@@ -41,6 +41,11 @@ export interface Config {
   workspacesDir: string;
   bin: Record<HarnessId, string>;
   claudePermissionMode: string;
+  /**
+   * Extended-thinking token budget for Claude, passed to the CLI as
+   * MAX_THINKING_TOKENS. > 0 turns on visible reasoning; 0 disables it.
+   */
+  claudeThinkingTokens: number;
   obsidianVault: string | null;
   obsidianFolder: string;
   distillHarness: HarnessId;
@@ -59,6 +64,7 @@ export const config: Config = {
     pi: process.env.BOBBY_PI_BIN ?? "pi",
   },
   claudePermissionMode: process.env.BOBBY_CLAUDE_PERMISSION_MODE ?? "acceptEdits",
+  claudeThinkingTokens: Number(process.env.BOBBY_CLAUDE_THINKING_TOKENS ?? 4096),
   obsidianVault: process.env.OBSIDIAN_VAULT ?? null,
   obsidianFolder: process.env.OBSIDIAN_FOLDER ?? "Bobby",
   distillHarness: (process.env.BOBBY_DISTILL_HARNESS as HarnessId) ?? "claude",

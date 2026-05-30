@@ -133,6 +133,9 @@ export function App() {
   const saveSettings = async (s: AppSettings) => {
     const saved = await api.saveSettings(s);
     setSettings(saved);
+    // The vault may have just been (un)set, which flips obsidianConfigured —
+    // refresh the server flags so the ✦ Distill button updates without a reload.
+    api.getConfig().then(setServerConfig).catch(() => {});
   };
 
   const sendMessage = (text: string) => {
@@ -182,6 +185,13 @@ export function App() {
 
   const distill = async () => {
     if (!active) return;
+    if (!serverConfig?.obsidianConfigured) {
+      setDistillNote(
+        "✦ Distill saves this chat's key takeaways as a note in your Obsidian vault. " +
+          "To turn it on, open Settings (⚙) and set your Obsidian vault path.",
+      );
+      return;
+    }
     setDistillNote("Distilling…");
     try {
       const res = await api.distill(active.id);
@@ -221,6 +231,7 @@ export function App() {
               onDistill={distill}
               onPatch={patchChat}
               onEditMessage={editAndResend}
+              onReviewSubmit={sendMessage}
               onExecutePlan={approvePlan}
               onContinuePlan={continueStep}
               onStop={stopRun}

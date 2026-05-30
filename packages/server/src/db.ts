@@ -427,3 +427,13 @@ export function saveSettings(settings: AppSettings): AppSettings {
   stmt.setSetting.run({ key: SETTINGS_KEY, value: JSON.stringify(merged) });
   return merged;
 }
+
+/**
+ * The Obsidian vault Bobby should distill into: the path saved in Settings wins,
+ * else the OBSIDIAN_VAULT env var, else null (distillation disabled). Single
+ * source of truth so the UI flag, the distill route, and auto-distill agree.
+ */
+export function effectiveObsidianVault(): string | null {
+  const fromSettings = getSettings().obsidianVault?.trim();
+  return fromSettings || config.obsidianVault;
+}

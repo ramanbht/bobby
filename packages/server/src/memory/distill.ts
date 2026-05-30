@@ -1,5 +1,6 @@
 import type { Chat, DistillResult, HarnessId, Message } from "@bobby/shared";
 import { config } from "../config.js";
+import { effectiveObsidianVault } from "../db.js";
 import { runToString } from "../adapters/proc.js";
 import { renderTranscript } from "../adapters/types.js";
 import { writeNote } from "./obsidian.js";
@@ -53,8 +54,9 @@ export function parseNote(markdown: string): { title: string; body: string } | n
  * worth saving. Throws if the vault isn't configured.
  */
 export async function distillChat(chat: Chat, messages: Message[]): Promise<DistillResult | null> {
-  if (!config.obsidianVault) {
-    throw new Error("Obsidian vault not configured (set OBSIDIAN_VAULT).");
+  const vault = effectiveObsidianVault();
+  if (!vault) {
+    throw new Error("Obsidian vault not configured (set it in Settings or OBSIDIAN_VAULT).");
   }
   const transcript = renderTranscript(messages);
   if (!transcript.trim()) return null;
@@ -70,6 +72,7 @@ export async function distillChat(chat: Chat, messages: Message[]): Promise<Dist
     body: parsed.body,
     chatId: chat.id,
     harness: chat.harness,
+    vault,
   });
 
   return {

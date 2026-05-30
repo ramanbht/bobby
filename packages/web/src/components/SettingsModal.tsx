@@ -16,6 +16,7 @@ export function SettingsModal({
   const [models, setModels] = useState<Partial<Record<HarnessId, string>>>(settings.models ?? {});
   const [agent, setAgent] = useState(settings.defaultConfig?.agent ?? "");
   const [skills, setSkills] = useState((settings.defaultConfig?.skills ?? []).join(", "));
+  const [obsidianVault, setObsidianVault] = useState(settings.obsidianVault ?? "");
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -28,6 +29,7 @@ export function SettingsModal({
           agent: agent.trim() || undefined,
           skills: parseList(skills),
         },
+        obsidianVault: obsidianVault.trim() || undefined,
       });
       onClose();
     } finally {
@@ -77,6 +79,19 @@ export function SettingsModal({
           <label className="field">
             <span>Default skills <span className="muted">(comma-separated; Hermes &amp; pi)</span></span>
             <input value={skills} placeholder="e.g. pdf, xlsx" onChange={(e) => setSkills(e.target.value)} />
+          </label>
+
+          <label className="field">
+            <span>Obsidian vault <span className="muted">(enables ✦ Distill)</span></span>
+            <input
+              value={obsidianVault}
+              placeholder="/Users/you/ObsidianVault"
+              onChange={(e) => setObsidianVault(e.target.value)}
+            />
+            <span className="field-hint muted">
+              Absolute path to your vault. Set this to turn on distilling chats into notes;
+              leave empty to keep it off (or use the OBSIDIAN_VAULT env var).
+            </span>
           </label>
         </div>
 

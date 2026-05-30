@@ -18,6 +18,8 @@ export interface WriteNoteInput {
   chatId: string;
   harness: string;
   tags?: string[];
+  /** Vault path override (from Settings). Falls back to config.obsidianVault. */
+  vault?: string;
 }
 
 export interface WrittenNote {
@@ -31,11 +33,12 @@ export interface WrittenNote {
  * Filenames collide-safely by appending a short timestamp suffix when needed.
  */
 export function writeNote(input: WriteNoteInput): WrittenNote {
-  if (!config.obsidianVault) {
-    throw new Error("Obsidian vault not configured (set OBSIDIAN_VAULT).");
+  const vault = input.vault?.trim() || config.obsidianVault;
+  if (!vault) {
+    throw new Error("Obsidian vault not configured (set it in Settings or OBSIDIAN_VAULT).");
   }
 
-  const dir = path.join(config.obsidianVault, config.obsidianFolder);
+  const dir = path.join(vault, config.obsidianFolder);
   fs.mkdirSync(dir, { recursive: true });
 
   const title = slugifyTitle(input.title);

@@ -42,7 +42,7 @@ harness-agnostic and pick it up automatically.
 ## Running the tests
 
 ```bash
-pnpm e2e               # one command: typecheck + 54 vitest tests + build + REST/WS smoke + daemon CLI
+pnpm e2e               # one command: typecheck + 61 vitest tests + build + REST/WS smoke + daemon CLI
 pnpm e2e -- --live     # additionally run one live Claude turn (~$0.01)
 pnpm e2e -- --skip-install  # re-run without `pnpm install`
 ```
@@ -51,7 +51,7 @@ What's covered automatically (no LLM credits needed):
 
 | Layer | Coverage |
 |---|---|
-| Parsers / pure functions | Claude stream-json, pi JSON extraction, distill note parser, `slugifyTitle`, `renderTranscript`, `promptWithHistory`, `parsePlanSteps`, `isValidSchedule` |
+| Parsers / pure functions | Claude stream-json, hermes ACP `session/update` mapping, pi JSON extraction, distill note parser, `slugifyTitle`, `renderTranscript`, `promptWithHistory`, `parsePlanSteps`, `isValidSchedule` |
 | HTTP API (`app.inject`) | health, harnesses, settings round-trip + validation, chat CRUD, harness switch + 404/400, jobs CRUD + validation, distill 400 |
 | Orchestration (mocked adapter) | `runTurn` (streaming + session capture + auto-title), `runPlan` (plan parsing + `planMode`), `executePlan` + `continuePlan` (full pause/resume state machine), `stopChat` (cancellation), `editAndRerun` (truncate + clear + replay; assistant-edit rejection) |
 | Server boot smoke | `node dist/index.js` boots; REST CRUD + harness switch live; **WebSocket** protocol — invalid JSON + 5 bogus-chat commands all produce `error` frames; `stop` is silent |

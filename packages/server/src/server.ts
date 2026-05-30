@@ -61,7 +61,7 @@ async function routes(app: FastifyInstance) {
   app.get("/api/harnesses", async () => listHarnessInfo());
 
   app.get("/api/config", async () => ({
-    obsidianConfigured: !!config.obsidianVault,
+    obsidianConfigured: !!db.effectiveObsidianVault(),
     distillHarness: config.distillHarness,
     autoDistill: config.autoDistill,
   }));
@@ -118,8 +118,10 @@ async function routes(app: FastifyInstance) {
   app.post<{ Params: { id: string } }>("/api/chats/:id/distill", async (req, reply) => {
     const chat = db.getChat(req.params.id);
     if (!chat) return reply.code(404).send({ error: "chat not found" });
-    if (!config.obsidianVault) {
-      return reply.code(400).send({ error: "Obsidian vault not configured (set OBSIDIAN_VAULT)." });
+    if (!db.effectiveObsidianVault()) {
+      return reply
+        .code(400)
+        .send({ error: "Obsidian vault not configured (set it in Settings or OBSIDIAN_VAULT)." });
     }
     try {
       const result = await distillChat(chat, db.listMessages(chat.id));

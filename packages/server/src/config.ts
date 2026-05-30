@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { fileURLToPath } from "node:url";
+import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
 import type { HarnessId } from "@bobby/shared";
@@ -13,7 +14,25 @@ function bool(v: string | undefined, fallback: boolean): boolean {
   return ["1", "true", "yes", "on"].includes(v.toLowerCase());
 }
 
-const dataDir = path.join(pkgRoot, "data");
+/**
+ * One shared data directory for ALL launch methods (dev server, desktop .dmg,
+ * launchd daemon) so chat history persists no matter how Bobby is started.
+ * This matches Electron's `app.getPath("userData")` and the daemon's data dir
+ * on macOS (~/Library/Application Support/Bobby). Override with BOBBY_DB /
+ * BOBBY_WORKDIR (the test harness does this to stay isolated).
+ */
+function appDataDir(): string {
+  const home = os.homedir();
+  if (process.platform === "darwin") {
+    return path.join(home, "Library", "Application Support", "Bobby");
+  }
+  if (process.platform === "win32") {
+    return path.join(process.env.APPDATA ?? path.join(home, "AppData", "Roaming"), "Bobby");
+  }
+  return path.join(process.env.XDG_DATA_HOME ?? path.join(home, ".local", "share"), "Bobby");
+}
+
+const dataDir = appDataDir();
 
 export interface Config {
   port: number;

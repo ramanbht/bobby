@@ -192,6 +192,13 @@ export interface AppSettings {
   models: Partial<Record<HarnessId, string>>;
   /** Default advanced config applied to new chats. */
   defaultConfig: ChatConfig;
+  /**
+   * Absolute path to the Obsidian vault distilled notes are written to. When set
+   * (non-empty), this enables the Distill button and overrides the OBSIDIAN_VAULT
+   * env var. Unset/empty ⇒ fall back to the env var (and distillation stays off
+   * if that's unset too).
+   */
+  obsidianVault?: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {

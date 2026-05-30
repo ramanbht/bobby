@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseClaudeStreamLine } from "../src/adapters/claude.js";
+import { mapAcpUpdate, mapAcpUsage } from "../src/adapters/acp.js";
 import { extractText, pluckText } from "../src/adapters/pi.js";
 import { promptWithHistory, renderTranscript } from "../src/adapters/types.js";
 import { parseNote } from "../src/memory/distill.js";
@@ -80,6 +81,54 @@ describe("pi text extraction", () => {
   });
   it("extractText falls back to raw text when not JSON", () => {
     expect(extractText(["just plain output"])).toBe("just plain output");
+  });
+});
+
+describe("mapAcpUpdate (hermes ACP streaming)", () => {
+  it("maps an agent message chunk to a text delta", () => {
+    expect(mapAcpUpdate({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "OK" } })).toEqual([
+      { type: "text-delta", text: "OK" },
+    ]);
+  });
+  it("maps an agent thought chunk to a thinking delta", () => {
+    expect(mapAcpUpdate({ sessionUpdate: "agent_thought_chunk", content: { type: "text", text: "hmm" } })).toEqual([
+      { type: "thinking-delta", text: "hmm" },
+    ]);
+  });
+  it("maps a tool_call to a tool-use event", () => {
+    expect(
+      mapAcpUpdate({ sessionUpdate: "tool_call", toolCallId: "t1", title: "Read", rawInput: { path: "a.txt" } }),
+    ).toEqual([{ type: "tool-use", id: "t1", name: "Read", input: { path: "a.txt" } }]);
+  });
+  it("maps a completed tool_call_update to a tool-result", () => {
+    expect(
+      mapAcpUpdate({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "t1",
+        status: "completed",
+        content: [{ type: "content", content: { type: "text", text: "done" } }],
+      }),
+    ).toEqual([{ type: "tool-result", id: "t1", output: "done", isError: false }]);
+  });
+  it("flags a failed tool_call_update", () => {
+    const [ev] = mapAcpUpdate({ sessionUpdate: "tool_call_update", toolCallId: "t1", status: "failed", content: [] });
+    expect(ev).toMatchObject({ type: "tool-result", isError: true });
+  });
+  it("ignores in-progress tool updates and unknown/empty payloads", () => {
+    expect(mapAcpUpdate({ sessionUpdate: "tool_call_update", status: "in_progress" })).toEqual([]);
+    expect(mapAcpUpdate({ sessionUpdate: "availableCommands" })).toEqual([]);
+    expect(mapAcpUpdate({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "" } })).toEqual([]);
+    expect(mapAcpUpdate(null)).toEqual([]);
+  });
+});
+
+describe("mapAcpUsage", () => {
+  it("carries token counts through (no cost for local models)", () => {
+    expect(mapAcpUsage({ inputTokens: 10, outputTokens: 5 })).toEqual({
+      inputTokens: 10,
+      outputTokens: 5,
+      costUsd: undefined,
+    });
   });
 });
 

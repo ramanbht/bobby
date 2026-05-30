@@ -250,7 +250,7 @@ async function streamAssistant(
   const saved = db.updateMessage(assistant.id, finalText, Object.keys(meta).length ? meta : null);
   emit({ type: "turn-end", chatId: chat.id, message: saved });
 
-  if (!errored && !opts.planMode && config.autoDistill && config.obsidianVault) {
+  if (!errored && !opts.planMode && config.autoDistill && db.effectiveObsidianVault()) {
     distillChat(chat, db.listMessages(chat.id)).catch((e) =>
       console.error("[distill] auto-distill failed:", (e as Error).message),
     );

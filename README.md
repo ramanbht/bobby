@@ -12,7 +12,7 @@ your **Obsidian** knowledge base.
   <img alt="license" src="https://img.shields.io/badge/license-MIT-7c3aed" />
   <img alt="typescript" src="https://img.shields.io/badge/TypeScript-strict-3178c6" />
   <img alt="node" src="https://img.shields.io/badge/node-%E2%89%A520-339933" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-34%20passing-4ade80" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-61%20passing-4ade80" />
 </p>
 
 <img src="docs/screenshots/stream.gif" width="860" alt="Bobby — a live streaming turn" />
@@ -120,7 +120,7 @@ Everything is environment variables (see [`.env.example`](.env.example)) — all
 |---|---|---|
 | `PORT` | `8787` | API/WebSocket port |
 | `BOBBY_DB` | `./data/bobby.sqlite` | Where your chats are stored |
-| `OBSIDIAN_VAULT` | *(unset)* | Absolute path to your vault. Unset ⇒ distillation off |
+| `OBSIDIAN_VAULT` | *(unset)* | Absolute path to your vault. Unset ⇒ distillation off (or set it in **Settings ⚙**) |
 | `OBSIDIAN_FOLDER` | `Bobby` | Subfolder for distilled notes |
 | `BOBBY_DISTILL_HARNESS` | `claude` | Harness used for the distillation pass |
 | `BOBBY_AUTO_DISTILL` | `false` | Distill automatically after each turn |
@@ -129,7 +129,8 @@ Everything is environment variables (see [`.env.example`](.env.example)) — all
 ## Customizing chats
 
 - **Settings (⚙ in the sidebar)** — default harness, a default model per harness,
-  and default agent/skills for new chats. Stored server-side.
+  default agent/skills for new chats, and your **Obsidian vault path** (which turns
+  on the ✦ Distill button). Stored server-side.
 - **Per-chat model** — the model field in the chat header is editable anytime; the
   next turn uses it.
 - **Switch harness mid-chat** — the harness dropdown in the chat header; Bobby
@@ -205,22 +206,29 @@ dialect regardless of which agent is answering.
 |---------|------------------------|-----------|--------|
 | Claude Code | `claude -p --output-format stream-json` | token-level | `-r <session id>` |
 | pi | `pi -p --mode json` | per-turn | `--session <id>` |
-| Hermes | `hermes -z` (oneshot) | per-turn | via Bobby history |
+| Hermes | `hermes acp` (Agent Client Protocol) | token-level † | via Bobby history |
+
+† Bobby streams Hermes turns over ACP — the adapter forwards each `agent_message_chunk`
+as it arrives. Planning turns use `hermes -z … -t ""` instead, to hard-disable tools while
+planning (ACP has no per-call tool toggle). How granular the live stream looks depends on
+your Hermes build/provider — some buffer the reply into one chunk before sending it.
 
 ## Testing
 
 ```bash
-pnpm test     # 29 tests, fully offline — no harness or network needed
+pnpm test     # 61 tests, fully offline — no harness or network needed
 ```
 
-Covers the pure harness-output parsers (Claude stream-json, pi JSON extraction,
-distill note parsing) and the HTTP API end-to-end via Fastify `inject` (chat CRUD,
-per-chat model/agent/skills, settings, validation).
+Covers the pure harness-output parsers (Claude stream-json, hermes ACP
+`session/update` mapping, pi JSON extraction, distill note parsing) and the HTTP
+API end-to-end via Fastify `inject` (chat CRUD, per-chat model/agent/skills,
+settings, validation). For the full end-to-end gate (typecheck + tests + build +
+REST/WS smoke), run `pnpm e2e`.
 
 ## Roadmap
 
-- Token streaming for Hermes (ACP) and pi (`--mode rpc`) — the adapter interface
-  already supports it.
+- Token streaming for pi (`--mode rpc`) — the adapter interface already supports
+  it.
 - Richer tool-call/diff rendering in the chat view.
 - More knowledge-base targets beyond Obsidian.
 

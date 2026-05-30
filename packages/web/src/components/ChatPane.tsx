@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ChatWithMessages, HarnessId, HarnessInfo, Message, UpdateChatRequest } from "@bobby/shared";
 import { MessageContent } from "./MessageContent.js";
 import { PlanCard } from "./PlanCard.js";
+import { ReviewPane } from "./ReviewPane.js";
 
 export function ChatPane({
   chat,
@@ -12,6 +13,7 @@ export function ChatPane({
   onDistill,
   onPatch,
   onEditMessage,
+  onReviewSubmit,
   onExecutePlan,
   onContinuePlan,
   onStop,
@@ -24,12 +26,15 @@ export function ChatPane({
   onDistill: () => void;
   onPatch: (patch: UpdateChatRequest) => void;
   onEditMessage: (messageId: string, text: string) => void;
+  onReviewSubmit: (text: string) => void;
   onExecutePlan: (messageId: string) => void;
   onContinuePlan: (messageId: string) => void;
   onStop: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showConfig, setShowConfig] = useState(false);
+  const [reviewId, setReviewId] = useState<string | null>(null);
+  const reviewMessage = reviewId ? chat.messages.find((m) => m.id === reviewId) ?? null : null;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -66,9 +71,12 @@ export function ChatPane({
             ⚙
           </button>
           <button
-            className="distill-btn"
-            disabled={!obsidianConfigured}
-            title={obsidianConfigured ? "Distill this chat into an Obsidian note" : "Set OBSIDIAN_VAULT to enable"}
+            className={`distill-btn ${obsidianConfigured ? "" : "needs-setup"}`}
+            title={
+              obsidianConfigured
+                ? "Distill this chat into an Obsidian note"
+                : "No Obsidian vault yet — click for how to enable, or set one in Settings (⚙)"
+            }
             onClick={onDistill}
           >
             ✦ Distill
@@ -79,21 +87,35 @@ export function ChatPane({
       {showConfig && <ConfigPanel chat={chat} onPatch={onPatch} />}
       {distillNote && <div className="distill-banner">{distillNote}</div>}
 
-      <div className="messages" ref={scrollRef}>
-        {chat.messages.length === 0 && (
-          <div className="empty-conv">Say something to {chat.harness}.</div>
-        )}
-        {chat.messages.map((m) => (
-          <MessageBubble
-            key={m.id}
-            message={m}
-            busy={busy}
-            onEdit={m.role === "user" ? (text) => onEditMessage(m.id, text) : undefined}
-            onApprovePlan={() => onExecutePlan(m.id)}
-            onContinuePlan={() => onContinuePlan(m.id)}
-            onStop={onStop}
+      <div className="chat-body">
+        <div className="messages" ref={scrollRef}>
+          {chat.messages.length === 0 && (
+            <div className="empty-conv">Say something to {chat.harness}.</div>
+          )}
+          {chat.messages.map((m) => (
+            <MessageBubble
+              key={m.id}
+              message={m}
+              busy={busy}
+              onEdit={m.role === "user" ? (text) => onEditMessage(m.id, text) : undefined}
+              onReview={m.role === "assistant" ? () => setReviewId(m.id) : undefined}
+              onApprovePlan={() => onExecutePlan(m.id)}
+              onContinuePlan={() => onContinuePlan(m.id)}
+              onStop={onStop}
+            />
+          ))}
+        </div>
+
+        {reviewMessage && (
+          <ReviewPane
+            message={reviewMessage}
+            onClose={() => setReviewId(null)}
+            onSubmit={(text) => {
+              setReviewId(null);
+              onReviewSubmit(text);
+            }}
           />
-        ))}
+        )}
       </div>
     </section>
   );
@@ -192,6 +214,7 @@ function MessageBubble({
   message,
   busy,
   onEdit,
+  onReview,
   onApprovePlan,
   onContinuePlan,
   onStop,
@@ -199,6 +222,7 @@ function MessageBubble({
   message: Message;
   busy: boolean;
   onEdit?: (text: string) => void;
+  onReview?: () => void;
   onApprovePlan: () => void;
   onContinuePlan: () => void;
   onStop: () => void;
@@ -206,6 +230,7 @@ function MessageBubble({
   const isUser = message.role === "user";
   const plan = message.meta?.plan;
   const streaming = !isUser && busy && message.content === "" && !plan;
+  const canReview = !!onReview && !plan && !!message.content && !busy;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.content);
 
@@ -228,6 +253,11 @@ function MessageBubble({
         {onEdit && !editing && !busy && (
           <button className="edit-btn" title="Edit & re-run from here" onClick={startEdit}>
             ✎ edit
+          </button>
+        )}
+        {canReview && (
+          <button className="edit-btn" title="Review & leave inline comments" onClick={onReview}>
+            📝 review
           </button>
         )}
       </div>

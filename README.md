@@ -144,12 +144,18 @@ Everything is environment variables (see [`.env.example`](.env.example)) — all
 | Variable | Default | What it does |
 |---|---|---|
 | `PORT` | `8787` | API/WebSocket port |
-| `BOBBY_DB` | `./data/bobby.sqlite` | Where your chats are stored |
+| `BOBBY_DB` | `<app-data>/bobby.sqlite` ¹ | Your chat database — one shared SQLite across dev, desktop & daemon |
+| `BOBBY_WORKDIR` | `<app-data>/workspaces` ¹ | Per-chat working dirs each harness subprocess runs in |
 | `OBSIDIAN_VAULT` | *(unset)* | Absolute path to your vault. Unset ⇒ distillation off (or set it in **Settings ⚙**) |
 | `OBSIDIAN_FOLDER` | `Bobby` | Subfolder for distilled notes |
 | `BOBBY_DISTILL_HARNESS` | `claude` | Harness used for the distillation pass |
 | `BOBBY_AUTO_DISTILL` | `false` | Distill automatically after each turn |
 | `BOBBY_CLAUDE_PERMISSION_MODE` | `acceptEdits` | Claude tool-permission mode |
+
+> ¹ `<app-data>` is your OS application-data dir — macOS `~/Library/Application Support/Bobby`,
+> Windows `%APPDATA%\Bobby`, Linux `$XDG_DATA_HOME/Bobby` (or `~/.local/share/Bobby`). The
+> same directory is used whether you launch via `pnpm dev`, the desktop app, or the daemon,
+> so your history never splits between them.
 
 ## Knowledge base (distillation)
 
@@ -231,29 +237,34 @@ Two levels of always-on:
 
 ## How it works
 
-```
-                 ┌──────────────┐   WebSocket    ┌─────────────────────────┐
-   React UI ◄────►│   Fastify    │◄──────────────►│  Adapter (per harness)  │
-  (packages/web)  │   server     │  HarnessEvent  │  claude · hermes · pi   │
-                 │ packages/    │     stream     └───────────┬─────────────┘
-                 │  server      │                            │ spawns CLI
-                 │              │                  ┌─────────▼─────────┐
-                 │  SQLite ◄────┼── saves chats    │  claude / hermes  │
-                 │  (canonical) │                  │  / pi subprocess  │
-                 │  Distiller ──┼──► Obsidian      └───────────────────┘
-                 └──────────────┘
+```mermaid
+flowchart LR
+    UI["React UI<br/>(packages/web)"]
+    Server["Fastify + WebSocket server<br/>(packages/server)"]
+    Adapter["Adapter, per harness<br/>claude · hermes · pi"]
+    CLI["Harness subprocess<br/>claude / hermes / pi"]
+    DB[("SQLite<br/>canonical history")]
+    Vault[["Obsidian vault"]]
+
+    UI <-->|"WebSocket · ServerFrame"| Server
+    Server <-->|"HarnessEvent stream"| Adapter
+    Adapter -->|"spawns a fresh CLI per turn"| CLI
+    Server -->|"persists every turn"| DB
+    Server -->|"Distiller"| Vault
 ```
 
 Each **adapter** is the only code that knows a harness's CLI quirks. It spawns the
 harness and normalizes whatever it emits into one `HarnessEvent` stream. The server
-persists that stream to SQLite and forwards it to the browser, so the UI speaks one
-dialect regardless of which agent is answering.
+persists that stream to SQLite (the canonical record) and forwards it to the browser
+as `ServerFrame`s, so the UI speaks one dialect regardless of which agent is
+answering. A turn spawns a fresh subprocess that exits when the turn ends — idle
+chats hold no process.
 
 | Harness | Native mode Bobby uses | Streaming | Resume |
 |---------|------------------------|-----------|--------|
 | Claude Code | `claude -p --output-format stream-json` | token-level | `-r <session id>` |
-| pi | `pi -p --mode json` | per-turn | `--session <id>` |
 | Hermes | `hermes acp` (Agent Client Protocol) | token-level † | via Bobby history |
+| pi | `pi -p --mode json` | per-turn | `--session <id>` |
 
 † Bobby streams Hermes turns over ACP — the adapter forwards each `agent_message_chunk`
 as it arrives. Planning turns use `hermes -z … -t ""` instead, to hard-disable tools while

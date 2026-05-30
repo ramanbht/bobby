@@ -231,10 +231,18 @@ function MessageBubble({
   const plan = message.meta?.plan;
   const streaming = !isUser && busy && message.content === "" && !plan;
   const canReview = !!onReview && !plan && !!message.content && !busy;
+  const thinking = !isUser ? message.meta?.thinking : undefined;
+  // Auto-expand reasoning while the harness is still thinking (no answer yet);
+  // once text arrives it stays whatever the user last set it to.
+  const activelyThinking = !!thinking && busy && message.content === "" && !plan;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.content);
+  const [thinkingOpen, setThinkingOpen] = useState(false);
 
   useEffect(() => setDraft(message.content), [message.content]);
+  useEffect(() => {
+    if (activelyThinking) setThinkingOpen(true);
+  }, [activelyThinking]);
 
   const startEdit = () => {
     setDraft(message.content);
@@ -289,6 +297,20 @@ function MessageBubble({
           />
         ) : (
           <>
+            {thinking && (
+              <details
+                className="thinking"
+                open={thinkingOpen}
+                onToggle={(e) => setThinkingOpen((e.target as HTMLDetailsElement).open)}
+              >
+                <summary>
+                  💭 Thinking{activelyThinking ? "…" : ""}
+                </summary>
+                <div className="thinking-body">
+                  <MessageContent text={thinking} />
+                </div>
+              </details>
+            )}
             <MessageContent text={message.content} />
             {streaming && <span className="cursor">▋</span>}
             {message.meta?.toolCalls?.length ? (

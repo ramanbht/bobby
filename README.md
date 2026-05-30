@@ -161,6 +161,26 @@ harness, a model, a prompt, and a schedule (presets like *every day at 9am*, or 
 cron expression). Each job records its runs in a dedicated chat, and run output
 streams live into any open window. Toggle jobs on/off, **Run now**, or delete.
 
+### Keeping jobs fired when the UI is closed
+
+Two levels of always-on:
+
+- **Tray mode (default in the desktop app).** Close the window — Bobby keeps running
+  in the menu bar (look for the 🌸). The server stays up, so **scheduled jobs keep
+  firing**. Quit is explicit (tray menu or ⌘Q).
+- **macOS launchd daemon.** For "fires even on a fresh login, no app open":
+
+  ```bash
+  pnpm build              # first time only
+  pnpm daemon:install     # installs ~/Library/LaunchAgents/dev.bobby.server.plist
+  pnpm daemon:status      # check it's running
+  pnpm daemon:uninstall   # remove it
+  ```
+
+  The agent runs the server on login + relaunches on crash (RunAtLoad + KeepAlive),
+  writes data to `~/Library/Application Support/Bobby/`, logs to
+  `~/Library/Logs/Bobby/`, and exposes the UI at <http://localhost:8787>.
+
 ## How it works
 
 ```

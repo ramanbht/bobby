@@ -22,6 +22,8 @@ export const piAdapter: HarnessAdapter = {
     const hasSession = fs.existsSync(sessionDir) && fs.readdirSync(sessionDir).length > 0;
     const args = ["-p", "--mode", "json", "--session-dir", sessionDir];
     if (input.model) args.push("--model", input.model);
+    // Planning turn: hard-disable tools so pi truly only plans.
+    if (input.planMode) args.push("--no-tools");
     for (const skill of input.config?.skills ?? []) args.push("--skill", skill);
     if (hasSession) args.push("--continue");
     args.push(promptWithHistory(input, hasSession));

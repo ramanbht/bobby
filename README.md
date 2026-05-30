@@ -147,10 +147,11 @@ Everything is environment variables (see [`.env.example`](.env.example)) — all
 ## Plan-then-execute
 
 Flip the **◆ Plan first** toggle next to the composer and send a task. Instead of
-acting immediately, the harness returns a numbered plan (Claude uses its native
-`--permission-mode plan`), rendered as a checklist. Review it, hit **Approve & run**,
-and Bobby executes the steps **one at a time** — each step is its own turn with live
-status (○ pending → ◐ running → ✓ done), and you can **Stop** mid-way.
+acting immediately, the harness returns a numbered plan — rendered as a checklist —
+with **tools hard-disabled during the plan turn on every harness** (Claude
+`--permission-mode plan`, Hermes `-t ""`, pi `--no-tools`). Review it, hit
+**Approve & run**, and Bobby executes the steps **one at a time** — each step is its
+own turn with live status (○ pending → ◐ running → ✓ done), and you can **Stop** mid-way.
 
 ## Scheduled jobs
 

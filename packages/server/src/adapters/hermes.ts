@@ -20,6 +20,8 @@ export const hermesAdapter: HarnessAdapter = {
 
     const args = ["-z", prompt, "--accept-hooks"];
     if (input.model) args.push("-m", input.model);
+    // Planning turn: empty toolsets so hermes can't fire any tool during the plan.
+    if (input.planMode) args.push("-t", "");
     if (input.config?.skills?.length) args.push("--skills", input.config.skills.join(","));
 
     try {

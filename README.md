@@ -126,6 +126,28 @@ Everything is environment variables (see [`.env.example`](.env.example)) — all
 | `BOBBY_AUTO_DISTILL` | `false` | Distill automatically after each turn |
 | `BOBBY_CLAUDE_PERMISSION_MODE` | `acceptEdits` | Claude tool-permission mode |
 
+## Knowledge base (distillation)
+
+Distillation turns a chat into atomic notes in your **Obsidian** vault. It's **off
+until you tell Bobby where your vault is** — the ✦ Distill button stays disabled
+and explains this when no vault is set. To enable it, point Bobby at your vault one
+of two ways:
+
+- **Settings ⚙ (recommended)** — open **Settings** in the sidebar and paste your
+  vault's absolute path into **Obsidian distillation → Vault path**. A live
+  indicator shows *Distillation ON/OFF*, and ✦ Distill enables immediately (no
+  restart). Stored in Bobby's database.
+- **`OBSIDIAN_VAULT` env var** — set it before launch as a fallback (see the table
+  above). The Settings value wins if both are set.
+
+Once a vault is configured, hit **✦ Distill** in any chat header to save a note on
+demand, or set `BOBBY_AUTO_DISTILL=true` to distill automatically after every turn.
+Notes land in the `OBSIDIAN_FOLDER` subfolder (default `Bobby`).
+
+> Not sure of your vault's path? It's the folder you selected when you created the
+> vault in Obsidian (**Settings → About**, or right-click the vault in Obsidian's
+> vault switcher → *Reveal in Finder/Explorer*).
+
 ## Customizing chats
 
 - **Settings (⚙ in the sidebar)** — default harness, a default model per harness,

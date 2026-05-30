@@ -253,6 +253,7 @@ export function App() {
         <SettingsModal
           settings={settings}
           harnesses={harnesses}
+          serverConfig={serverConfig}
           onClose={() => setShowSettings(false)}
           onSave={saveSettings}
         />

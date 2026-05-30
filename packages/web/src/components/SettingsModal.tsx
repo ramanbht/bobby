@@ -1,14 +1,16 @@
 import { useState } from "react";
-import type { AppSettings, HarnessId, HarnessInfo } from "@bobby/shared";
+import type { AppSettings, HarnessId, HarnessInfo, ServerConfigInfo } from "@bobby/shared";
 
 export function SettingsModal({
   settings,
   harnesses,
+  serverConfig,
   onClose,
   onSave,
 }: {
   settings: AppSettings;
   harnesses: HarnessInfo[];
+  serverConfig: ServerConfigInfo | null;
   onClose: () => void;
   onSave: (s: AppSettings) => Promise<void>;
 }) {
@@ -18,6 +20,17 @@ export function SettingsModal({
   const [skills, setSkills] = useState((settings.defaultConfig?.skills ?? []).join(", "));
   const [obsidianVault, setObsidianVault] = useState(settings.obsidianVault ?? "");
   const [saving, setSaving] = useState(false);
+
+  // Live preview of whether distillation will be on once these settings save.
+  const vaultTyped = obsidianVault.trim().length > 0;
+  const envProvidesVault =
+    !vaultTyped && !(settings.obsidianVault ?? "").trim() && !!serverConfig?.obsidianConfigured;
+  const distillOn = vaultTyped || envProvidesVault;
+  const distillDetail = vaultTyped
+    ? "notes will be saved to this vault"
+    : envProvidesVault
+      ? "using the OBSIDIAN_VAULT environment variable"
+      : "set a vault path below to enable the ✦ Distill button";
 
   const save = async () => {
     setSaving(true);
@@ -81,18 +94,39 @@ export function SettingsModal({
             <input value={skills} placeholder="e.g. pdf, xlsx" onChange={(e) => setSkills(e.target.value)} />
           </label>
 
-          <label className="field">
-            <span>Obsidian vault <span className="muted">(enables ✦ Distill)</span></span>
-            <input
-              value={obsidianVault}
-              placeholder="/Users/you/ObsidianVault"
-              onChange={(e) => setObsidianVault(e.target.value)}
-            />
+          <fieldset className="field">
+            <legend>Obsidian distillation</legend>
+
+            <div className={`settings-status ${distillOn ? "on" : "off"}`}>
+              <span className="settings-status-dot" />
+              <span>
+                <strong>Distillation {distillOn ? "ON" : "OFF"}</strong> — {distillDetail}
+              </span>
+            </div>
+
+            <label className="row-field">
+              <span className="row-label">Vault path</span>
+              <input
+                value={obsidianVault}
+                placeholder="/Users/you/ObsidianVault"
+                onChange={(e) => setObsidianVault(e.target.value)}
+              />
+            </label>
+
             <span className="field-hint muted">
-              Absolute path to your vault. Set this to turn on distilling chats into notes;
-              leave empty to keep it off (or use the OBSIDIAN_VAULT env var).
+              Absolute path to your Obsidian vault. The ✦ Distill button writes a note of each
+              chat's key takeaways into it. Clear this field to turn distillation off (the
+              <code> OBSIDIAN_VAULT</code> env var is used as a fallback).
             </span>
-          </label>
+
+            {serverConfig && (
+              <span className="field-hint muted">
+                Distill harness: <strong>{serverConfig.distillHarness}</strong> · Auto-distill
+                after each turn: <strong>{serverConfig.autoDistill ? "on" : "off"}</strong>
+                {serverConfig.autoDistill ? "" : " (set BOBBY_AUTO_DISTILL=true to enable)"}
+              </span>
+            )}
+          </fieldset>
         </div>
 
         <footer className="modal-footer">

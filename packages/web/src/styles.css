@@ -151,6 +151,18 @@ textarea { resize: vertical; }
 .distill-btn.needs-setup:hover { opacity: 1; border-color: var(--accent); }
 
 .field-hint { font-size: 12px; line-height: 1.4; margin-top: 4px; }
+.field-hint code { background: var(--bg-3); border-radius: 4px; padding: 0 4px; }
+
+/* Live distillation on/off indicator in Settings. */
+.settings-status {
+  display: flex; align-items: center; gap: 8px; font-size: 13px;
+  padding: 8px 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border);
+}
+.settings-status-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.settings-status.on { background: rgba(74, 222, 128, 0.10); border-color: rgba(74, 222, 128, 0.45); }
+.settings-status.on .settings-status-dot { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+.settings-status.off { background: var(--bg-3); color: var(--text-dim); }
+.settings-status.off .settings-status-dot { background: var(--text-dim); }
 
 .config-panel { margin: 12px 20px; }
 .config-error { color: var(--danger); font-size: 12px; }

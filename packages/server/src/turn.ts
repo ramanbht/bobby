@@ -42,11 +42,13 @@ export async function editAndRerun(
     return;
   }
   db.updateMessage(messageId, newText, null);
-  db.deleteMessagesAfter(chat.id, target.createdAt);
+  db.deleteMessagesAfter(chat.id, messageId);
   db.clearHarnessSession(chat.id);
   chat.harnessSessionId = null;
   emit({ type: "user-message", message: { ...target, content: newText } });
-  const history = db.listMessages(chat.id).filter((m) => m.createdAt < target.createdAt);
+  // After truncation, only [messages-before-target, target] remain. History for
+  // the new turn is everything except target itself (tie-safe by id, not time).
+  const history = db.listMessages(chat.id).filter((m) => m.id !== messageId);
   await streamAssistant(chat, newText, history, emit);
 }
 
@@ -138,7 +140,8 @@ async function runNextStep(chat: Chat, messageId: string, emit: Emit): Promise<v
   }
 }
 
-function parsePlanSteps(text: string): string[] {
+/** Extract step texts from an LLM's numbered/bulleted plan. Exported for testing. */
+export function parsePlanSteps(text: string): string[] {
   const steps: string[] = [];
   for (const raw of text.split("\n")) {
     const m = raw.match(/^\s*(?:\d+[.)]|[-*])\s+(.+)$/);

@@ -19,7 +19,8 @@
     "desktop:dist": "pnpm --filter @bobby/desktop dist",
     "daemon:install": "node packages/server/scripts/daemon.cjs install",
     "daemon:status": "node packages/server/scripts/daemon.cjs status",
-    "daemon:uninstall": "node packages/server/scripts/daemon.cjs uninstall"
+    "daemon:uninstall": "node packages/server/scripts/daemon.cjs uninstall",
+    "e2e": "bash scripts/e2e.sh"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

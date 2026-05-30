@@ -148,8 +148,11 @@ const stmt = {
     `UPDATE chats SET harness_session_id = NULL, updated_at = @updated_at WHERE id = @id`,
   ),
   deleteChat: db.prepare(`DELETE FROM chats WHERE id = ?`),
+  // Uses SQLite's implicit rowid for tie-safe ordering — ISO timestamps can
+  // collide at millisecond resolution when messages are inserted back-to-back.
   deleteMessagesAfter: db.prepare(
-    `DELETE FROM messages WHERE chat_id = @chat_id AND created_at > @after`,
+    `DELETE FROM messages WHERE chat_id = @chat_id
+       AND rowid > (SELECT rowid FROM messages WHERE id = @target_id)`,
   ),
   getSetting: db.prepare(`SELECT value FROM settings WHERE key = ?`),
   setSetting: db.prepare(
@@ -293,9 +296,9 @@ export function getMessage(id: string): Message | null {
   return row ? toMessage(row) : null;
 }
 
-/** Delete every message in a chat created strictly after the given timestamp. */
-export function deleteMessagesAfter(chatId: string, after: string): void {
-  stmt.deleteMessagesAfter.run({ chat_id: chatId, after });
+/** Delete every message in a chat that was inserted *after* the given message. */
+export function deleteMessagesAfter(chatId: string, targetMessageId: string): void {
+  stmt.deleteMessagesAfter.run({ chat_id: chatId, target_id: targetMessageId });
 }
 
 /** Clear the harness-native session and wipe pi's session dir (e.g. when branching). */

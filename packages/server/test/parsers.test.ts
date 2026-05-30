@@ -143,3 +143,17 @@ describe("promptWithHistory", () => {
     expect(promptWithHistory({ ...base, history: [] }, false)).toBe("next");
   });
 });
+
+import { isValidSchedule } from "../src/scheduler.js";
+
+describe("isValidSchedule (cron)", () => {
+  it("accepts standard 5-field cron", () => {
+    expect(isValidSchedule("0 9 * * *")).toBe(true);
+    expect(isValidSchedule("*/15 * * * *")).toBe(true);
+    expect(isValidSchedule("0 9 * * 1-5")).toBe(true);
+  });
+  it("rejects nonsense", () => {
+    expect(isValidSchedule("not a cron")).toBe(false);
+    expect(isValidSchedule("")).toBe(false);
+  });
+});

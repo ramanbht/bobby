@@ -145,6 +145,24 @@ describe("HTTP API", () => {
     expect(del.statusCode).toBe(200);
   });
 
+  it("rejects a job with an unknown harness", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/jobs",
+      payload: { name: "x", harness: "bogus", prompt: "x", schedule: "0 9 * * *" },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("rejects a job with no prompt", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/jobs",
+      payload: { name: "x", harness: "claude", prompt: "", schedule: "0 9 * * *" },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
   it("rejects a job with an invalid cron schedule", async () => {
     const res = await app.inject({
       method: "POST",

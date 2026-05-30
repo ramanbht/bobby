@@ -39,8 +39,27 @@ harness-agnostic and pick it up automatically.
 - Bobby's SQLite store is the source of truth for chat history; harness-native
   sessions are an optimization, never the canonical record.
 
+## Running the tests
+
+```bash
+pnpm e2e               # one command: typecheck + 54 vitest tests + build + REST/WS smoke + daemon CLI
+pnpm e2e -- --live     # additionally run one live Claude turn (~$0.01)
+pnpm e2e -- --skip-install  # re-run without `pnpm install`
+```
+
+What's covered automatically (no LLM credits needed):
+
+| Layer | Coverage |
+|---|---|
+| Parsers / pure functions | Claude stream-json, pi JSON extraction, distill note parser, `slugifyTitle`, `renderTranscript`, `promptWithHistory`, `parsePlanSteps`, `isValidSchedule` |
+| HTTP API (`app.inject`) | health, harnesses, settings round-trip + validation, chat CRUD, harness switch + 404/400, jobs CRUD + validation, distill 400 |
+| Orchestration (mocked adapter) | `runTurn` (streaming + session capture + auto-title), `runPlan` (plan parsing + `planMode`), `executePlan` + `continuePlan` (full pause/resume state machine), `stopChat` (cancellation), `editAndRerun` (truncate + clear + replay; assistant-edit rejection) |
+| Server boot smoke | `node dist/index.js` boots; REST CRUD + harness switch live; **WebSocket** protocol — invalid JSON + 5 bogus-chat commands all produce `error` frames; `stop` is silent |
+| Daemon CLI | `pnpm daemon:status` responds cleanly |
+
+Agents: `pnpm e2e` is the single command — it exits non-zero on any failure and prints a clean per-category summary. When you add a new adapter, add parser unit tests; when you add server logic that streams or modifies messages, add an orchestration test using the mock-adapter pattern in `test/orchestration.test.ts`.
+
 ## Pull requests
 
-Run `pnpm typecheck`, `pnpm test`, and `pnpm build` before opening a PR. When
-you add an adapter, add parser unit tests (see `packages/server/test/`) and
-describe how you tested it against a real CLI.
+`pnpm e2e` must pass before opening a PR. When you add an adapter, describe how
+you tested it against a real CLI.

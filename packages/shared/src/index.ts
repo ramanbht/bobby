@@ -147,7 +147,7 @@ export interface MessageMeta {
  * approves it, then Bobby runs the steps one at a time with visible progress.
  * ------------------------------------------------------------------ */
 
-export type PlanStatus = "proposed" | "running" | "done" | "cancelled";
+export type PlanStatus = "proposed" | "running" | "paused" | "done" | "cancelled";
 export type StepStatus = "pending" | "running" | "done" | "failed";
 
 export interface PlanStep {
@@ -251,9 +251,16 @@ export interface PlanCommand {
   text: string;
 }
 
-/** Approve a proposed plan and run its steps one at a time. */
+/** Approve a proposed plan and start running its first pending step. */
 export interface ExecutePlanCommand {
   type: "execute-plan";
+  chatId: string;
+  messageId: string;
+}
+
+/** Advance one step further in a paused plan execution. */
+export interface ContinuePlanCommand {
+  type: "continue-plan";
   chatId: string;
   messageId: string;
 }
@@ -269,6 +276,7 @@ export type ClientCommand =
   | EditMessageCommand
   | PlanCommand
   | ExecutePlanCommand
+  | ContinuePlanCommand
   | StopCommand;
 
 /** Server -> client frames during a turn. */

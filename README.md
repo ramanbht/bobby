@@ -150,8 +150,9 @@ Flip the **◆ Plan first** toggle next to the composer and send a task. Instead
 acting immediately, the harness returns a numbered plan — rendered as a checklist —
 with **tools hard-disabled during the plan turn on every harness** (Claude
 `--permission-mode plan`, Hermes `-t ""`, pi `--no-tools`). Review it, hit
-**Approve & run**, and Bobby executes the steps **one at a time** — each step is its
-own turn with live status (○ pending → ◐ running → ✓ done), and you can **Stop** mid-way.
+**Approve & run**, and Bobby runs **step 1 only**, then **pauses** for an explicit
+**Continue** before each subsequent step (○ pending → ◐ running → ✓ done). You can
+**Stop** between or during any step. Truly not-yolo.
 
 ## Scheduled jobs
 

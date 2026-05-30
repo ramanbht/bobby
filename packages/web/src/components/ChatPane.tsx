@@ -13,6 +13,7 @@ export function ChatPane({
   onPatch,
   onEditMessage,
   onExecutePlan,
+  onContinuePlan,
   onStop,
 }: {
   chat: ChatWithMessages;
@@ -24,6 +25,7 @@ export function ChatPane({
   onPatch: (patch: UpdateChatRequest) => void;
   onEditMessage: (messageId: string, text: string) => void;
   onExecutePlan: (messageId: string) => void;
+  onContinuePlan: (messageId: string) => void;
   onStop: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -88,6 +90,7 @@ export function ChatPane({
             busy={busy}
             onEdit={m.role === "user" ? (text) => onEditMessage(m.id, text) : undefined}
             onApprovePlan={() => onExecutePlan(m.id)}
+            onContinuePlan={() => onContinuePlan(m.id)}
             onStop={onStop}
           />
         ))}
@@ -190,12 +193,14 @@ function MessageBubble({
   busy,
   onEdit,
   onApprovePlan,
+  onContinuePlan,
   onStop,
 }: {
   message: Message;
   busy: boolean;
   onEdit?: (text: string) => void;
   onApprovePlan: () => void;
+  onContinuePlan: () => void;
   onStop: () => void;
 }) {
   const isUser = message.role === "user";
@@ -246,7 +251,12 @@ function MessageBubble({
             </div>
           </div>
         ) : plan ? (
-          <PlanCard plan={plan} onApprove={onApprovePlan} onStop={onStop} />
+          <PlanCard
+            plan={plan}
+            onApprove={onApprovePlan}
+            onContinue={onContinuePlan}
+            onStop={onStop}
+          />
         ) : (
           <>
             <MessageContent text={message.content} />

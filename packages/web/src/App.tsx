@@ -102,7 +102,7 @@ export function App() {
     [],
   );
 
-  const { status, send, editMessage, plan, executePlan, stop } = useChatSocket(onFrame);
+  const { status, send, editMessage, plan, executePlan, continuePlan, stop } = useChatSocket(onFrame);
 
   /* ---- actions ---- */
   const selectChat = async (id: string) => {
@@ -151,6 +151,12 @@ export function App() {
     if (!active) return;
     setBusy(true);
     executePlan(active.id, messageId);
+  };
+
+  const continueStep = (messageId: string) => {
+    if (!active) return;
+    setBusy(true);
+    continuePlan(active.id, messageId);
   };
 
   const stopRun = () => {
@@ -216,6 +222,7 @@ export function App() {
               onPatch={patchChat}
               onEditMessage={editAndResend}
               onExecutePlan={approvePlan}
+              onContinuePlan={continueStep}
               onStop={stopRun}
             />
             <Composer

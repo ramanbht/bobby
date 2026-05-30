@@ -7,25 +7,31 @@ const STEP_ICON: Record<StepStatus, string> = {
   failed: "✗",
 };
 
-/** Renders a proposed/executing plan as a reviewable checklist with step status. */
+/** Renders a proposed/executing plan as a reviewable checklist with per-step gating. */
 export function PlanCard({
   plan,
   onApprove,
+  onContinue,
   onStop,
 }: {
   plan: Plan;
   onApprove: () => void;
+  onContinue: () => void;
   onStop: () => void;
 }) {
   const done = plan.steps.filter((s) => s.status === "done").length;
+  const total = plan.steps.length;
+
+  const statusLabel =
+    plan.status === "running" ? `running · ${done}/${total}` :
+    plan.status === "paused"  ? `paused · ${done}/${total}` :
+    plan.status;
 
   return (
     <div className={`plan-card plan-${plan.status}`}>
       <div className="plan-head">
         <span className="plan-title">◆ Plan</span>
-        <span className={`plan-status status-${plan.status}`}>
-          {plan.status === "running" ? `running · ${done}/${plan.steps.length}` : plan.status}
-        </span>
+        <span className={`plan-status status-${plan.status}`}>{statusLabel}</span>
       </div>
 
       <ol className="plan-steps">
@@ -39,7 +45,13 @@ export function PlanCard({
 
       <div className="plan-actions">
         {plan.status === "proposed" && (
-          <button className="primary-btn" onClick={onApprove}>▶ Approve &amp; run</button>
+          <button className="primary-btn" onClick={onApprove}>▶ Approve &amp; run step 1</button>
+        )}
+        {plan.status === "paused" && (
+          <>
+            <button className="primary-btn" onClick={onContinue}>▶ Continue · step {done + 1}</button>
+            <button className="ghost-btn" onClick={onStop}>■ Stop</button>
+          </>
         )}
         {plan.status === "running" && (
           <button className="ghost-btn" onClick={onStop}>■ Stop</button>

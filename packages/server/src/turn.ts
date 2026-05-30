@@ -71,45 +71,68 @@ export async function runPlan(chat: Chat, userText: string, emit: Emit): Promise
   });
 }
 
-/** Approve a proposed plan and run its steps one at a time, with live status. */
-export async function executePlan(chat: Chat, messageId: string, emit: Emit): Promise<void> {
+/** Approve a proposed plan: kick off step 1. The plan then pauses between steps. */
+export function executePlan(chat: Chat, messageId: string, emit: Emit): Promise<void> {
+  return runNextStep(chat, messageId, emit);
+}
+
+/** Advance one step further in a paused plan execution. */
+export function continuePlan(chat: Chat, messageId: string, emit: Emit): Promise<void> {
+  return runNextStep(chat, messageId, emit);
+}
+
+/**
+ * Run the next pending step of a plan, then pause (or finish). Each step
+ * requires its own explicit Continue — tight, not-yolo control.
+ */
+async function runNextStep(chat: Chat, messageId: string, emit: Emit): Promise<void> {
   const planMsg = db.getMessage(messageId);
   const plan = planMsg?.meta?.plan;
   if (!planMsg || !plan) {
     emit({ type: "error", chatId: chat.id, message: "plan not found" });
     return;
   }
+  if (plan.status === "done" || plan.status === "cancelled") {
+    emit({ type: "error", chatId: chat.id, message: `plan is ${plan.status}` });
+    return;
+  }
 
-  const controller = new AbortController();
-  running.set(chat.id, controller);
   const persistPlan = (next: Plan) => {
     const updated = db.setMessageMeta(messageId, { ...planMsg.meta, plan: next });
     emit({ type: "message-update", chatId: chat.id, message: updated });
   };
 
+  const step = plan.steps.find((s) => s.status === "pending");
+  if (!step) {
+    plan.status = "done";
+    persistPlan(plan);
+    return;
+  }
+
+  const controller = new AbortController();
+  running.set(chat.id, controller);
   plan.status = "running";
+  step.status = "running";
   persistPlan(plan);
 
+  let errored = false;
   try {
-    for (const step of plan.steps) {
-      if (controller.signal.aborted) break;
-      step.status = "running";
-      persistPlan(plan);
-
-      const { errored } = await streamAssistant(
-        chat,
-        `Execute step ${plan.steps.indexOf(step) + 1} of the approved plan, then stop:\n${step.text}`,
-        db.listMessages(chat.id),
-        emit,
-        { signal: controller.signal },
-      );
-
-      step.status = errored ? "failed" : "done";
-      persistPlan(plan);
-      if (errored) break;
-    }
+    const result = await streamAssistant(
+      chat,
+      `Execute step ${plan.steps.indexOf(step) + 1} of the approved plan, then stop:\n${step.text}`,
+      db.listMessages(chat.id),
+      emit,
+      { signal: controller.signal },
+    );
+    errored = result.errored;
   } finally {
-    plan.status = controller.signal.aborted ? "cancelled" : "done";
+    step.status = errored ? "failed" : "done";
+    const moreLeft = plan.steps.some((s) => s.status === "pending");
+    plan.status = controller.signal.aborted
+      ? "cancelled"
+      : errored || !moreLeft
+        ? "done"
+        : "paused";
     persistPlan(plan);
     running.delete(chat.id);
   }

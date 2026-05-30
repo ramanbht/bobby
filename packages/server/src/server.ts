@@ -17,7 +17,7 @@ import { config } from "./config.js";
 import * as db from "./db.js";
 import { distillChat } from "./memory/distill.js";
 import { listHarnessInfo } from "./harness-info.js";
-import { editAndRerun, executePlan, runPlan, runTurn, stopChat } from "./turn.js";
+import { continuePlan, editAndRerun, executePlan, runPlan, runTurn, stopChat } from "./turn.js";
 import {
   isValidSchedule,
   runJobNow,
@@ -175,6 +175,8 @@ async function routes(app: FastifyInstance) {
         run = () => runPlan(chat, cmd.text, emit);
       } else if (cmd.type === "execute-plan") {
         run = () => executePlan(chat, cmd.messageId, emit);
+      } else if (cmd.type === "continue-plan") {
+        run = () => continuePlan(chat, cmd.messageId, emit);
       }
       if (run) {
         chain = chain

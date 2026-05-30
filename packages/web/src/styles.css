@@ -234,6 +234,7 @@ textarea { resize: vertical; }
   padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim);
 }
 .plan-status.status-running { color: #facc15; border-color: rgba(250, 204, 21, 0.5); }
+.plan-status.status-paused { color: var(--accent-2); border-color: rgba(176, 107, 255, 0.5); }
 .plan-status.status-done { color: var(--ok); border-color: rgba(74, 222, 128, 0.5); }
 .plan-status.status-cancelled { color: var(--danger); border-color: rgba(248, 113, 113, 0.5); }
 .plan-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }

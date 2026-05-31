@@ -114,9 +114,10 @@ is fully self-contained.
 
 ## Updating
 
-Bobby updates by pulling the repo and restarting — there's no auto-updater. **Your
-chats are safe:** they live in `~/Library/Application Support/Bobby` (see
-[Configuration](#configuration)), separate from the code you pull.
+A plain restart does **not** update Bobby — it re-runs whatever is already built.
+New code lands only after a `git pull` + install + build *before* the server boots.
+**Your chats are safe** either way: they live in `~/Library/Application Support/Bobby`
+(see [Configuration](#configuration)), separate from the code you pull.
 
 ```bash
 pnpm refresh          # git pull (fast-forward) + pnpm install + pnpm build
@@ -136,6 +137,22 @@ Then restart however you run Bobby:
 has local commits/changes instead of creating a merge. If `pnpm install` ever leaves
 the native SQLite module mismatched (an ABI error on boot), run `pnpm install` again
 or `pnpm rebuild better-sqlite3`.
+
+### Auto-update on restart
+
+Don't want to remember `pnpm refresh`? Use the self-updating launcher, which pulls
+and rebuilds the latest **before** starting the server — so every restart runs the
+newest code:
+
+```bash
+pnpm start:latest     # git pull + build (if HEAD moved) → start the server
+```
+
+The **launchd daemon enables this by default** — each login/relaunch self-updates,
+then boots. Opt out with `BOBBY_UPDATE_ON_START=false pnpm daemon:install`. Updates
+are best-effort: if a pull or build fails (offline, local changes, non-fast-forward),
+Bobby logs it and boots the version already built — it never fails to start. This
+only applies to source checkouts; a packaged `.dmg`/`.exe` has no repo to pull.
 
 ## Configuration
 

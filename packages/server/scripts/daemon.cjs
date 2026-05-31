@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 /**
  * Install/uninstall Bobby as a macOS LaunchAgent so scheduled jobs fire even
- * when nobody's logged into the desktop app. The agent runs the same compiled
- * server (packages/server/dist/index.js) on login + relaunches on crash.
+ * when nobody's logged into the desktop app. The agent runs the self-updating
+ * launcher (packages/server/scripts/launch.cjs) on login + relaunches on crash,
+ * so each (re)start pulls + rebuilds the latest before booting the server.
  *
  *   pnpm daemon:install     install + load it (RunAtLoad + KeepAlive)
  *   pnpm daemon:status      check whether it's running
  *   pnpm daemon:uninstall   unload + remove the plist
+ *
+ * Auto-update is on by default; disable with `BOBBY_UPDATE_ON_START=false pnpm
+ * daemon:install`.
  */
 const fs = require("node:fs");
 const os = require("node:os");
@@ -27,12 +31,13 @@ function requireMac() {
   }
 }
 
-function buildPlist({ nodeBin, serverEntry }) {
+function buildPlist({ nodeBin, launcher, workdir, updateOnStart }) {
   const env = {
     PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin",
     PORT: String(PORT),
     BOBBY_DB: path.join(DATA_DIR, "bobby.sqlite"),
     BOBBY_WORKDIR: path.join(DATA_DIR, "workspaces"),
+    BOBBY_UPDATE_ON_START: String(updateOnStart),
   };
   const envBlock = Object.entries(env)
     .map(([k, v]) => `      <key>${k}</key>\n      <string>${escapeXml(v)}</string>`)
@@ -45,9 +50,9 @@ function buildPlist({ nodeBin, serverEntry }) {
   <key>ProgramArguments</key>
   <array>
     <string>${escapeXml(nodeBin)}</string>
-    <string>${escapeXml(serverEntry)}</string>
+    <string>${escapeXml(launcher)}</string>
   </array>
-  <key>WorkingDirectory</key><string>${escapeXml(path.dirname(serverEntry))}</string>
+  <key>WorkingDirectory</key><string>${escapeXml(workdir)}</string>
   <key>EnvironmentVariables</key>
   <dict>
 ${envBlock}
@@ -71,14 +76,20 @@ function install() {
   requireMac();
   const nodeBin = process.execPath;
   const serverEntry = path.resolve(__dirname, "..", "dist", "index.js");
+  const launcher = path.resolve(__dirname, "launch.cjs");
+  const repoRoot = path.resolve(__dirname, "..", "..", "..");
   if (!fs.existsSync(serverEntry)) {
     console.error(`Server build not found at: ${serverEntry}\nRun \`pnpm build\` first.`);
     process.exit(1);
   }
+  // Auto-update on each (re)start by default; opt out with BOBBY_UPDATE_ON_START=false.
+  const updateOnStart = !["0", "false", "no", "off"].includes(
+    String(process.env.BOBBY_UPDATE_ON_START ?? "true").toLowerCase(),
+  );
   fs.mkdirSync(path.dirname(PLIST), { recursive: true });
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.mkdirSync(LOG_DIR, { recursive: true });
-  fs.writeFileSync(PLIST, buildPlist({ nodeBin, serverEntry }));
+  fs.writeFileSync(PLIST, buildPlist({ nodeBin, launcher, workdir: repoRoot, updateOnStart }));
   // Reload (bootout first to avoid "service already loaded" errors).
   try { execSync(`launchctl bootout ${gui()}/${LABEL}`, { stdio: "ignore" }); } catch { /* not loaded */ }
   execSync(`launchctl bootstrap ${gui()} "${PLIST}"`, { stdio: "inherit" });
@@ -86,6 +97,7 @@ function install() {
   console.log(`  Plist:  ${PLIST}`);
   console.log(`  Data:   ${DATA_DIR}`);
   console.log(`  Logs:   ${LOG_DIR}`);
+  console.log(`  Update: ${updateOnStart ? "on each (re)start — git pull + build" : "off"}`);
   console.log(`  Open:   http://localhost:${PORT}`);
 }
 

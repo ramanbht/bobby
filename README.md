@@ -128,8 +128,8 @@ Then restart however you run Bobby:
 | You run Bobby with… | Update with |
 |---|---|
 | `pnpm dev` | stop it, then `pnpm refresh && pnpm dev` |
-| `pnpm start` | stop it, then `pnpm refresh && pnpm start` |
-| **launchd daemon** | `pnpm daemon:update` — refresh **and** reload the daemon in one step |
+| `pnpm start` | stop it, then `pnpm refresh && pnpm start` (or just `pnpm start:latest`) |
+| **launchd daemon** | `pnpm daemon:restart` — restarts and (auto-update on) pulls + rebuilds in one command |
 | `pnpm desktop` (from source) | quit it (tray 🌸 → Quit), then `pnpm refresh && pnpm desktop` |
 | installed `.dmg`/`.exe` | `pnpm refresh && pnpm desktop:dist`, then open the new file in `packages/desktop/release/` |
 
@@ -245,6 +245,7 @@ Two levels of always-on:
   ```bash
   pnpm build              # first time only
   pnpm daemon:install     # installs ~/Library/LaunchAgents/dev.bobby.server.plist
+  pnpm daemon:restart     # restart in place (also pulls + rebuilds latest)
   pnpm daemon:status      # check it's running
   pnpm daemon:uninstall   # remove it
   ```

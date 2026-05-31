@@ -6,6 +6,7 @@
  * so each (re)start pulls + rebuilds the latest before booting the server.
  *
  *   pnpm daemon:install     install + load it (RunAtLoad + KeepAlive)
+ *   pnpm daemon:restart     restart in place (re-runs the launcher → auto-update)
  *   pnpm daemon:status      check whether it's running
  *   pnpm daemon:uninstall   unload + remove the plist
  *
@@ -108,6 +109,24 @@ function uninstall() {
   console.log("✓ Bobby daemon uninstalled.");
 }
 
+function restart() {
+  requireMac();
+  if (!fs.existsSync(PLIST)) {
+    console.error("Bobby daemon not installed. Run `pnpm daemon:install` first.");
+    process.exit(1);
+  }
+  // kickstart -k kills the running instance and re-runs it, which re-triggers
+  // the self-updating launcher (auto-update on each restart, if enabled).
+  try {
+    execSync(`launchctl kickstart -k ${gui()}/${LABEL}`, { stdio: "inherit" });
+  } catch {
+    // Not currently loaded — load it instead.
+    execSync(`launchctl bootstrap ${gui()} "${PLIST}"`, { stdio: "inherit" });
+  }
+  console.log("✓ Bobby daemon restarted (pulls + rebuilds latest on boot if auto-update is on).");
+  console.log(`  Open: http://localhost:${PORT}`);
+}
+
 function status() {
   requireMac();
   if (!fs.existsSync(PLIST)) {
@@ -129,8 +148,9 @@ function status() {
 const cmd = process.argv[2];
 if (cmd === "install") install();
 else if (cmd === "uninstall") uninstall();
+else if (cmd === "restart") restart();
 else if (cmd === "status") status();
 else {
   console.log("Bobby — macOS launchd daemon");
-  console.log("Usage: pnpm daemon:install | daemon:status | daemon:uninstall");
+  console.log("Usage: pnpm daemon:install | daemon:restart | daemon:status | daemon:uninstall");
 }

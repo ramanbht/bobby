@@ -130,7 +130,7 @@ Then restart however you run Bobby:
 | `pnpm dev` | stop it, then `pnpm refresh && pnpm dev` |
 | `pnpm start` | stop it, then `pnpm refresh && pnpm start` (or just `pnpm start:latest`) |
 | **launchd daemon** | `pnpm daemon:restart` — restarts and (auto-update on) pulls + rebuilds in one command |
-| `pnpm desktop` (from source) | quit it (tray 🌸 → Quit), then `pnpm refresh && pnpm desktop` |
+| `pnpm desktop` (from source) | `pnpm refresh`, then tray 🌸 → **Restart Bobby** (or quit + `pnpm desktop`) |
 | installed `.dmg`/`.exe` | `pnpm refresh && pnpm desktop:dist`, then open the new file in `packages/desktop/release/` |
 
 `pnpm refresh` uses `git pull --ff-only`, so it stops cleanly if your working tree
@@ -239,7 +239,8 @@ Two levels of always-on:
 
 - **Tray mode (default in the desktop app).** Close the window — Bobby keeps running
   in the menu bar (look for the 🌸). The server stays up, so **scheduled jobs keep
-  firing**. Quit is explicit (tray menu or ⌘Q).
+  firing**. The tray menu has **Restart Bobby** (one-click relaunch — picks up a new
+  build after `pnpm refresh`) and **Quit Bobby** (⌘Q); quitting is explicit.
 - **macOS launchd daemon.** For "fires even on a fresh login, no app open":
 
   ```bash

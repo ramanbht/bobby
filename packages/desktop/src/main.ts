@@ -96,6 +96,18 @@ function showWindow(): void {
   mainWindow.focus();
 }
 
+/**
+ * Restart the whole app: schedule a relaunch, then quit. The fresh process
+ * boots a new in-process server, so this picks up an updated build (after a
+ * `pnpm refresh`) and clears any stuck state — the desktop equivalent of
+ * `pnpm daemon:restart`.
+ */
+function relaunchApp(): void {
+  isQuitting = true;
+  app.relaunch();
+  app.quit();
+}
+
 function createTray(): void {
   // Empty icon + a unicode title gives a clean 🌸 in the macOS menu bar with
   // no platform-specific image asset to ship.
@@ -109,6 +121,7 @@ function createTray(): void {
       { type: "separator" },
       { label: "Bobby is running — scheduled jobs will fire here.", enabled: false },
       { type: "separator" },
+      { label: "Restart Bobby", click: () => relaunchApp() },
       { label: "Quit Bobby", accelerator: "CommandOrControl+Q", click: () => { isQuitting = true; app.quit(); } },
     ]),
   );

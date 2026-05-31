@@ -127,10 +127,10 @@ Then restart however you run Bobby:
 
 | You run Bobby with… | Update with |
 |---|---|
-| `pnpm dev` | stop it, then `pnpm refresh && pnpm dev` |
+| `pnpm dev` | stop it, then `pnpm refresh && pnpm dev` (or just `pnpm dev:latest`) |
 | `pnpm start` | stop it, then `pnpm refresh && pnpm start` (or just `pnpm start:latest`) |
 | **launchd daemon** | `pnpm daemon:restart` — restarts and (auto-update on) pulls + rebuilds in one command |
-| `pnpm desktop` (from source) | `pnpm refresh`, then tray 🌸 → **Restart Bobby** (or quit + `pnpm desktop`) |
+| `pnpm desktop` (from source) | tray 🌸 → **Check for updates & Restart** (one click: pull + rebuild + relaunch) |
 | installed `.dmg`/`.exe` | `pnpm refresh && pnpm desktop:dist`, then open the new file in `packages/desktop/release/` |
 
 `pnpm refresh` uses `git pull --ff-only`, so it stops cleanly if your working tree
@@ -140,19 +140,24 @@ or `pnpm rebuild better-sqlite3`.
 
 ### Auto-update on restart
 
-Don't want to remember `pnpm refresh`? Use the self-updating launcher, which pulls
-and rebuilds the latest **before** starting the server — so every restart runs the
-newest code:
+Don't want to remember `pnpm refresh`? Each launch method has a one-command (or
+one-click) "pull the latest, then run" path:
 
 ```bash
-pnpm start:latest     # git pull + build (if HEAD moved) → start the server
+pnpm dev:latest       # git pull + build → run the dev servers
+pnpm start:latest     # git pull + build (if HEAD moved) → start the production server
 ```
 
-The **launchd daemon enables this by default** — each login/relaunch self-updates,
-then boots. Opt out with `BOBBY_UPDATE_ON_START=false pnpm daemon:install`. Updates
-are best-effort: if a pull or build fails (offline, local changes, non-fast-forward),
-Bobby logs it and boots the version already built — it never fails to start. This
-only applies to source checkouts; a packaged `.dmg`/`.exe` has no repo to pull.
+- **launchd daemon** — auto-updates **by default**: each login/relaunch (incl.
+  `pnpm daemon:restart`) self-updates, then boots. Opt out with
+  `BOBBY_UPDATE_ON_START=false pnpm daemon:install`.
+- **Desktop app** (from source) — tray 🌸 → **Check for updates & Restart** pulls,
+  rebuilds, and relaunches in one click.
+
+Updates are best-effort: if a pull or build fails (offline, local changes,
+non-fast-forward), Bobby keeps the version already built — it never ends up broken.
+This only applies to source checkouts; a packaged `.dmg`/`.exe` has no repo to pull
+(install a newer build instead).
 
 ## Configuration
 
@@ -239,8 +244,9 @@ Two levels of always-on:
 
 - **Tray mode (default in the desktop app).** Close the window — Bobby keeps running
   in the menu bar (look for the 🌸). The server stays up, so **scheduled jobs keep
-  firing**. The tray menu has **Restart Bobby** (one-click relaunch — picks up a new
-  build after `pnpm refresh`) and **Quit Bobby** (⌘Q); quitting is explicit.
+  firing**. The tray menu has **Check for updates & Restart** (from a source checkout:
+  git pull + rebuild + relaunch in one click), **Restart Bobby** (plain relaunch), and
+  **Quit Bobby** (⌘Q); quitting is explicit.
 - **macOS launchd daemon.** For "fires even on a fresh login, no app open":
 
   ```bash

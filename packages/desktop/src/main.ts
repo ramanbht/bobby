@@ -1,5 +1,6 @@
-import { app, BrowserWindow, Menu, Tray, nativeImage, shell } from "electron";
-import { spawn, type ChildProcess } from "node:child_process";
+import { app, BrowserWindow, Menu, Tray, nativeImage, shell, dialog, type MenuItemConstructorOptions } from "electron";
+import { spawn, execSync, type ChildProcess } from "node:child_process";
+import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 
@@ -108,23 +109,84 @@ function relaunchApp(): void {
   app.quit();
 }
 
+/**
+ * Manual "git pull on restart" for the desktop app: pull the latest, and only
+ * if HEAD actually moved, reinstall + rebuild, then relaunch onto the new
+ * build. Heavy steps run async so the menu-bar app doesn't beachball.
+ *
+ * Source checkouts only — a packaged .dmg has no repo to pull (and the menu
+ * item is hidden there). Any failure is shown and leaves Bobby untouched.
+ */
+async function checkForUpdatesAndRestart(): Promise<void> {
+  const repoRoot = path.join(__dirname, "..", "..", "..");
+  const env = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
+  const head = () => execSync("git rev-parse HEAD", { cwd: repoRoot, env }).toString().trim();
+  const step = (cmd: string, args: string[]) =>
+    new Promise<void>((resolve, reject) => {
+      const p = spawn(cmd, args, { cwd: repoRoot, env, stdio: "inherit" });
+      p.on("error", reject);
+      p.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`${cmd} ${args.join(" ")} → exit ${code}`))));
+    });
+
+  if (!fs.existsSync(path.join(repoRoot, ".git"))) {
+    await dialog.showMessageBox({
+      type: "info",
+      message: "Nothing to update",
+      detail: "This isn't a source checkout, so there's no repo to pull. Install a newer build instead.",
+    });
+    return;
+  }
+
+  tray?.setTitle("🌸 ⏳");
+  try {
+    const before = head();
+    await step("git", ["pull", "--ff-only"]);
+    if (head() === before) {
+      tray?.setTitle("🌸");
+      await dialog.showMessageBox({
+        type: "info",
+        message: "Already up to date",
+        detail: `You're on the latest commit (${before.slice(0, 7)}).`,
+      });
+      return;
+    }
+    await step("pnpm", ["install", "--prefer-offline"]);
+    await step("pnpm", ["build"]);
+    await step("pnpm", ["--filter", "@bobby/desktop", "build"]);
+    relaunchApp();
+  } catch (err) {
+    tray?.setTitle("🌸");
+    await dialog.showMessageBox({
+      type: "error",
+      message: "Update failed",
+      detail: `${(err as Error).message || err}\n\nBobby was not changed — it's still on the current build.`,
+    });
+  }
+}
+
 function createTray(): void {
   // Empty icon + a unicode title gives a clean 🌸 in the macOS menu bar with
   // no platform-specific image asset to ship.
   tray = new Tray(nativeImage.createEmpty());
   tray.setTitle("🌸");
   tray.setToolTip("Bobby — click to open");
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: "Open Bobby", click: () => showWindow() },
-      { label: "Open in browser…", click: () => shell.openExternal(`http://localhost:${PORT}`) },
-      { type: "separator" },
-      { label: "Bobby is running — scheduled jobs will fire here.", enabled: false },
-      { type: "separator" },
-      { label: "Restart Bobby", click: () => relaunchApp() },
-      { label: "Quit Bobby", accelerator: "CommandOrControl+Q", click: () => { isQuitting = true; app.quit(); } },
-    ]),
+  const template: MenuItemConstructorOptions[] = [
+    { label: "Open Bobby", click: () => showWindow() },
+    { label: "Open in browser…", click: () => shell.openExternal(`http://localhost:${PORT}`) },
+    { type: "separator" },
+    { label: "Bobby is running — scheduled jobs will fire here.", enabled: false },
+    { type: "separator" },
+  ];
+  // Self-update only makes sense from a source checkout; a packaged .dmg has no
+  // repo to pull, so the item is hidden there.
+  if (!app.isPackaged) {
+    template.push({ label: "Check for updates & Restart", click: () => void checkForUpdatesAndRestart() });
+  }
+  template.push(
+    { label: "Restart Bobby", click: () => relaunchApp() },
+    { label: "Quit Bobby", accelerator: "CommandOrControl+Q", click: () => { isQuitting = true; app.quit(); } },
   );
+  tray.setContextMenu(Menu.buildFromTemplate(template));
   tray.on("click", () => showWindow());
 }
 

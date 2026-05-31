@@ -47,8 +47,8 @@ is a single adapter file.
   straight into your Obsidian vault — automatically or on demand.
 - 📊 **Rich output.** Replies render real widgets — charts, diagrams (Mermaid),
   tables, and code — not just walls of text.
-- 🖥️ **Runs anywhere.** A browser tab (`pnpm dev`) or a native desktop app
-  (`pnpm desktop`, packaged to `.dmg`/`.exe`/`AppImage`).
+- 🖥️ **Runs anywhere.** A browser tab (`pnpm dev`) or a native desktop window
+  (`pnpm desktop`).
 - 🧩 **Open & extensible.** Adding a new harness is one adapter file. MIT licensed.
 
 ## Screenshots
@@ -100,64 +100,39 @@ Prefer a native window over a browser tab?
 
 ```bash
 pnpm desktop        # run Bobby in its own window (Electron) — boots the server for you
-pnpm desktop:dist   # build a double-click installer → packages/desktop/release/
 ```
 
-`pnpm desktop:dist` produces a real installer (`.dmg` on macOS, `.exe` on Windows,
-`AppImage` on Linux). The server is bundled into a single file and runs in-process;
-the native SQLite module is rebuilt for Electron automatically, so the packaged app
-is fully self-contained.
+Closing the window keeps Bobby alive in the menu bar (🌸) so scheduled jobs keep
+firing; quit explicitly from the tray or with ⌘Q. The desktop app shares the **same
+database** as `pnpm dev` / `pnpm start` (see [Configuration](#configuration)).
 
-> Note: `desktop:dist` recompiles `better-sqlite3` for Electron's ABI. If you then
-> want to run `pnpm dev` / `pnpm test` (which use system Node), run `pnpm install`
-> once to restore it.
+> Bobby is distributed as **source**, not a prebuilt binary — there's no published
+> `.dmg`/`.exe` and no in-app auto-updater. You run and update it from the checkout
+> (below).
 
 ## Updating
 
-A plain restart does **not** update Bobby — it re-runs whatever is already built.
-New code lands only after a `git pull` + install + build *before* the server boots.
-**Your chats are safe** either way: they live in `~/Library/Application Support/Bobby`
-(see [Configuration](#configuration)), separate from the code you pull.
+A plain restart re-runs whatever is already built — **new code lands only after a
+`git pull` + rebuild**. Your chats are safe either way: they live in
+`~/Library/Application Support/Bobby` (see [Configuration](#configuration)),
+separate from the code.
 
 ```bash
-pnpm refresh          # git pull (fast-forward) + pnpm install + pnpm build
+pnpm refresh          # git pull (--ff-only) + pnpm install + pnpm build
 ```
 
-Then restart however you run Bobby:
+Then restart however you run Bobby — or use the one-step "pull, then run" shortcuts:
 
 | You run Bobby with… | Update with |
 |---|---|
-| `pnpm dev` | stop it, then `pnpm refresh && pnpm dev` (or just `pnpm dev:latest`) |
-| `pnpm start` | stop it, then `pnpm refresh && pnpm start` (or just `pnpm start:latest`) |
-| **launchd daemon** | `pnpm daemon:restart` — restarts and (auto-update on) pulls + rebuilds in one command |
-| `pnpm desktop` (from source) | tray 🌸 → **Check for updates & Restart** (one click: pull + rebuild + relaunch) |
-| installed `.dmg`/`.exe` | `pnpm refresh && pnpm desktop:dist`, then open the new file in `packages/desktop/release/` |
+| `pnpm dev` | `pnpm dev:latest` (refresh, then dev) |
+| `pnpm start` | `pnpm start:latest` (refresh if HEAD moved, then start) |
+| `pnpm desktop` | tray 🌸 → **Check for updates & Restart** (pull + rebuild + relaunch) |
 
-`pnpm refresh` uses `git pull --ff-only`, so it stops cleanly if your working tree
-has local commits/changes instead of creating a merge. If `pnpm install` ever leaves
-the native SQLite module mismatched (an ABI error on boot), run `pnpm install` again
-or `pnpm rebuild better-sqlite3`.
-
-### Auto-update on restart
-
-Don't want to remember `pnpm refresh`? Each launch method has a one-command (or
-one-click) "pull the latest, then run" path:
-
-```bash
-pnpm dev:latest       # git pull + build → run the dev servers
-pnpm start:latest     # git pull + build (if HEAD moved) → start the production server
-```
-
-- **launchd daemon** — auto-updates **by default**: each login/relaunch (incl.
-  `pnpm daemon:restart`) self-updates, then boots. Opt out with
-  `BOBBY_UPDATE_ON_START=false pnpm daemon:install`.
-- **Desktop app** (from source) — tray 🌸 → **Check for updates & Restart** pulls,
-  rebuilds, and relaunches in one click.
-
-Updates are best-effort: if a pull or build fails (offline, local changes,
-non-fast-forward), Bobby keeps the version already built — it never ends up broken.
-This only applies to source checkouts; a packaged `.dmg`/`.exe` has no repo to pull
-(install a newer build instead).
+`pnpm refresh` uses `git pull --ff-only`, so it stops cleanly (no merge) if your tree
+has local changes. Updates are best-effort: if a pull or build fails, Bobby keeps the
+version already built. If `better-sqlite3` ever reports an ABI mismatch on boot, run
+`pnpm install` again or `pnpm rebuild better-sqlite3`.
 
 ## Configuration
 
@@ -166,7 +141,7 @@ Everything is environment variables (see [`.env.example`](.env.example)) — all
 | Variable | Default | What it does |
 |---|---|---|
 | `PORT` | `8787` | API/WebSocket port |
-| `BOBBY_DB` | `<app-data>/bobby.sqlite` ¹ | Your chat database — one shared SQLite across dev, desktop & daemon |
+| `BOBBY_DB` | `<app-data>/bobby.sqlite` ¹ | Your chat database — one shared SQLite across dev & the desktop app |
 | `BOBBY_WORKDIR` | `<app-data>/workspaces` ¹ | Per-chat working dirs each harness subprocess runs in |
 | `OBSIDIAN_VAULT` | *(unset)* | Absolute path to your vault. Unset ⇒ distillation off (or set it in **Settings ⚙**) |
 | `OBSIDIAN_FOLDER` | `Bobby` | Subfolder for distilled notes |
@@ -177,7 +152,7 @@ Everything is environment variables (see [`.env.example`](.env.example)) — all
 
 > ¹ `<app-data>` is your OS application-data dir — macOS `~/Library/Application Support/Bobby`,
 > Windows `%APPDATA%\Bobby`, Linux `$XDG_DATA_HOME/Bobby` (or `~/.local/share/Bobby`). The
-> same directory is used whether you launch via `pnpm dev`, the desktop app, or the daemon,
+> same directory is used whether you launch via `pnpm dev` or the desktop app,
 > so your history never splits between them.
 
 ## Knowledge base (distillation)
@@ -240,26 +215,15 @@ streams live into any open window. Toggle jobs on/off, **Run now**, or delete.
 
 ### Keeping jobs fired when the UI is closed
 
-Two levels of always-on:
+Run the **desktop app** (`pnpm desktop`) and close the window — Bobby keeps running
+in the menu bar (look for the 🌸). The server stays up, so **scheduled jobs keep
+firing**. The tray menu has **Check for updates & Restart** (git pull + rebuild +
+relaunch in one click), **Restart Bobby** (plain relaunch), and **Quit Bobby** (⌘Q);
+quitting is explicit.
 
-- **Tray mode (default in the desktop app).** Close the window — Bobby keeps running
-  in the menu bar (look for the 🌸). The server stays up, so **scheduled jobs keep
-  firing**. The tray menu has **Check for updates & Restart** (from a source checkout:
-  git pull + rebuild + relaunch in one click), **Restart Bobby** (plain relaunch), and
-  **Quit Bobby** (⌘Q); quitting is explicit.
-- **macOS launchd daemon.** For "fires even on a fresh login, no app open":
-
-  ```bash
-  pnpm build              # first time only
-  pnpm daemon:install     # installs ~/Library/LaunchAgents/dev.bobby.server.plist
-  pnpm daemon:restart     # restart in place (also pulls + rebuilds latest)
-  pnpm daemon:status      # check it's running
-  pnpm daemon:uninstall   # remove it
-  ```
-
-  The agent runs the server on login + relaunches on crash (RunAtLoad + KeepAlive),
-  writes data to `~/Library/Application Support/Bobby/`, logs to
-  `~/Library/Logs/Bobby/`, and exposes the UI at <http://localhost:8787>.
+> Want jobs to fire even when no app is open (e.g. after a fresh login)? Keep
+> `pnpm start` running under your OS's service manager — launchd/systemd/NSSM — or
+> just leave the desktop app open in the tray.
 
 ## How it works
 

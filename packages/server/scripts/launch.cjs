@@ -14,7 +14,7 @@
  * entirely. A short throttle stops a crash-restart loop from hammering the
  * remote.
  *
- * Used by `pnpm start:latest` and, by default, the launchd daemon.
+ * Used by `pnpm start:latest`.
  */
 const fs = require("node:fs");
 const os = require("node:os");
@@ -30,7 +30,7 @@ const wantUpdate =
   process.argv.includes("--update") ||
   TRUTHY.includes(String(process.env.BOBBY_UPDATE_ON_START ?? "").toLowerCase());
 
-// Don't let git block on a credential prompt in a non-interactive daemon.
+// Don't let git block on a credential prompt in a non-interactive launch.
 const childEnv = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
 
 const log = (msg) => console.log(`[bobby:launch] ${msg}`);

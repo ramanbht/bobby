@@ -19,12 +19,6 @@
     "start:latest": "node packages/server/scripts/launch.cjs --update",
     "refresh": "git pull --ff-only && pnpm install && pnpm build",
     "desktop": "pnpm --filter @bobby/desktop dev",
-    "desktop:dist": "pnpm --filter @bobby/desktop dist",
-    "daemon:install": "node packages/server/scripts/daemon.cjs install",
-    "daemon:restart": "node packages/server/scripts/daemon.cjs restart",
-    "daemon:status": "node packages/server/scripts/daemon.cjs status",
-    "daemon:uninstall": "node packages/server/scripts/daemon.cjs uninstall",
-    "daemon:update": "pnpm refresh && pnpm daemon:install && pnpm daemon:status",
     "e2e": "bash scripts/e2e.sh"
   },
   "devDependencies": {

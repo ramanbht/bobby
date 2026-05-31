@@ -15,11 +15,11 @@ function bool(v: string | undefined, fallback: boolean): boolean {
 }
 
 /**
- * One shared data directory for ALL launch methods (dev server, desktop .dmg,
- * launchd daemon) so chat history persists no matter how Bobby is started.
- * This matches Electron's `app.getPath("userData")` and the daemon's data dir
- * on macOS (~/Library/Application Support/Bobby). Override with BOBBY_DB /
- * BOBBY_WORKDIR (the test harness does this to stay isolated).
+ * One shared data directory for ALL launch methods (dev/prod server and the
+ * desktop app) so chat history persists no matter how Bobby is started. This
+ * matches Electron's `app.getPath("userData")` on macOS
+ * (~/Library/Application Support/Bobby). Override with BOBBY_DB / BOBBY_WORKDIR
+ * (the test harness does this to stay isolated).
  */
 function appDataDir(): string {
   const home = os.homedir();

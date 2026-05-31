@@ -7,35 +7,16 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "bundle:server": "esbuild ../server/src/index.ts --bundle --platform=node --format=cjs --target=node20 --external:better-sqlite3 --define:import.meta.url=importMetaUrl --banner:js='const importMetaUrl = require(\"url\").pathToFileURL(__filename).href;' --outfile=build/server.cjs",
-    "prep": "pnpm --filter @bobby/shared build && pnpm --filter @bobby/server build && pnpm --filter @bobby/web build && pnpm run bundle:server && pnpm run build",
+    "prep": "pnpm --filter @bobby/shared build && pnpm --filter @bobby/server build && pnpm --filter @bobby/web build && pnpm run build",
     "start": "electron .",
-    "dev": "pnpm run prep && electron .",
-    "dist": "pnpm run prep && electron-builder"
+    "dev": "pnpm run prep && electron ."
   },
   "dependencies": {
     "better-sqlite3": "^11.5.0"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
-    "esbuild": "^0.24.0",
     "electron": "^33.2.1",
-    "electron-builder": "^25.1.8",
     "typescript": "^5.6.3"
-  },
-  "build": {
-    "appId": "dev.bobby.app",
-    "productName": "Bobby",
-    "directories": { "output": "release" },
-    "files": ["dist/**", "build/**"],
-    "asarUnpack": ["**/better-sqlite3/**", "**/*.node"],
-    "extraResources": [{ "from": "../web/dist", "to": "web/dist" }],
-    "mac": {
-      "category": "public.app-category.developer-tools",
-      "icon": "build/icon.png",
-      "target": ["dmg"]
-    },
-    "win": { "icon": "build/icon.png", "target": ["nsis"] },
-    "linux": { "icon": "build/icon.png", "target": ["AppImage"], "category": "Development" }
   }
 }

@@ -9,12 +9,10 @@ import path from "node:path";
  *
  * Closing the window does NOT quit Bobby — it hides to the menu-bar tray so
  * scheduled jobs keep firing in the background. Quit explicitly from the tray
- * menu or Cmd+Q. (For a true OS-level daemon that survives login,
- * `pnpm daemon:install`.)
+ * menu or Cmd+Q.
  *
- *  - Packaged: server is bundled to one `server.cjs` (esbuild) and required in
- *    process; better-sqlite3 is rebuilt for Electron's ABI by electron-builder.
- *  - Dev: spawn the workspace server with system `node`.
+ * Bobby runs from a source checkout (`pnpm desktop`): this shell spawns the
+ * workspace server with system `node`.
  */
 
 const PORT = Number(process.env.BOBBY_PORT ?? 8799);
@@ -24,19 +22,19 @@ let tray: Tray | null = null;
 let isQuitting = false;
 
 function startServer(): void {
+  // Keep every launch method on ONE data dir (CLAUDE.md invariant). Forcing the
+  // app name to "Bobby" makes userData resolve to ~/Library/Application Support/
+  // Bobby — the same dir `pnpm dev` / `pnpm start` use — instead of the dev
+  // package name (@bobby/desktop), which would silently split chat history.
+  app.setName("Bobby");
   process.env.PORT = String(PORT);
   process.env.BOBBY_DB = path.join(app.getPath("userData"), "bobby.sqlite");
   process.env.BOBBY_WORKDIR = path.join(app.getPath("userData"), "workspaces");
+  process.env.BOBBY_WEB_DIST = path.join(__dirname, "..", "..", "web", "dist");
 
-  if (app.isPackaged) {
-    process.env.BOBBY_WEB_DIST = path.join(process.resourcesPath, "web", "dist");
-    require(path.join(__dirname, "..", "build", "server.cjs"));
-  } else {
-    process.env.BOBBY_WEB_DIST = path.join(__dirname, "..", "..", "web", "dist");
-    const entry = path.join(__dirname, "..", "..", "server", "dist", "index.js");
-    server = spawn("node", [entry], { env: process.env, stdio: "inherit" });
-    server.on("exit", (code) => console.log("[bobby] server exited", code));
-  }
+  const entry = path.join(__dirname, "..", "..", "server", "dist", "index.js");
+  server = spawn("node", [entry], { env: process.env, stdio: "inherit" });
+  server.on("exit", (code) => console.log("[bobby] server exited", code));
 }
 
 function waitForServer(retries = 80): Promise<void> {
@@ -99,9 +97,8 @@ function showWindow(): void {
 
 /**
  * Restart the whole app: schedule a relaunch, then quit. The fresh process
- * boots a new in-process server, so this picks up an updated build (after a
- * `pnpm refresh`) and clears any stuck state — the desktop equivalent of
- * `pnpm daemon:restart`.
+ * boots a new server, so this picks up an updated build (after a `pnpm refresh`)
+ * and clears any stuck state.
  */
 function relaunchApp(): void {
   isQuitting = true;
@@ -114,8 +111,9 @@ function relaunchApp(): void {
  * if HEAD actually moved, reinstall + rebuild, then relaunch onto the new
  * build. Heavy steps run async so the menu-bar app doesn't beachball.
  *
- * Source checkouts only — a packaged .dmg has no repo to pull (and the menu
- * item is hidden there). Any failure is shown and leaves Bobby untouched.
+ * Bobby runs from a source checkout, so there's always a repo to pull; the
+ * `.git` guard below only trips if the tree was copied without it. Any failure
+ * is shown and leaves Bobby untouched.
  */
 async function checkForUpdatesAndRestart(): Promise<void> {
   const repoRoot = path.join(__dirname, "..", "..", "..");
@@ -132,7 +130,7 @@ async function checkForUpdatesAndRestart(): Promise<void> {
     await dialog.showMessageBox({
       type: "info",
       message: "Nothing to update",
-      detail: "This isn't a source checkout, so there's no repo to pull. Install a newer build instead.",
+      detail: "This folder has no .git, so there's no repo to pull. Re-clone Bobby from GitHub to update.",
     });
     return;
   }
@@ -177,11 +175,8 @@ function createTray(): void {
     { label: "Bobby is running — scheduled jobs will fire here.", enabled: false },
     { type: "separator" },
   ];
-  // Self-update only makes sense from a source checkout; a packaged .dmg has no
-  // repo to pull, so the item is hidden there.
-  if (!app.isPackaged) {
-    template.push({ label: "Check for updates & Restart", click: () => void checkForUpdatesAndRestart() });
-  }
+  // Self-update from the source checkout: pull + rebuild + relaunch.
+  template.push({ label: "Check for updates & Restart", click: () => void checkForUpdatesAndRestart() });
   template.push(
     { label: "Restart Bobby", click: () => relaunchApp() },
     { label: "Quit Bobby", accelerator: "CommandOrControl+Q", click: () => { isQuitting = true; app.quit(); } },

@@ -133,11 +133,6 @@ else fail "WS protocol"; echo "  $WS_OUT"; fi
 cleanup
 trap - EXIT INT TERM
 
-# 6) daemon CLI smoke (no actual install)
-section "Daemon CLI"
-if pnpm daemon:status 2>&1 | grep -qE "not installed|State"; then ok "pnpm daemon:status responds"
-else fail "daemon:status"; fi
-
 # Optional live LLM smoke
 if [ $LIVE -eq 1 ]; then
   section "Live LLM smoke (~\$0.01)"

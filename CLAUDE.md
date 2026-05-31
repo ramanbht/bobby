@@ -45,11 +45,12 @@ React UI ──WS──> Fastify server ──> Adapter (per harness) ──spaw
   clear the native session id and replay Bobby's stored history.
 - **Adapters are the only harness-aware code.** Don't leak CLI flags or quirks
   into the server, the UI, or shared types.
-- **One shared data dir for every launch method.** Dev, desktop `.dmg`, and the
-  launchd daemon all read/write the same DB (`config.ts` → `appDataDir()`:
-  `~/Library/Application Support/Bobby` on macOS). Override with `BOBBY_DB` /
-  `BOBBY_WORKDIR` (the test harness does this to stay isolated). Don't
-  reintroduce a per-package `data/` dir — that silently splits history.
+- **One shared data dir for every launch method.** The dev/prod server and the
+  desktop app all read/write the same DB (`config.ts` → `appDataDir()`:
+  `~/Library/Application Support/Bobby` on macOS; the desktop shell pins
+  `app.setName("Bobby")` so its userData resolves there too). Override with
+  `BOBBY_DB` / `BOBBY_WORKDIR` (the test harness does this to stay isolated).
+  Don't reintroduce a per-package `data/` dir — that silently splits history.
 
 ## Adding a harness
 
@@ -80,14 +81,14 @@ React UI ──WS──> Fastify server ──> Adapter (per harness) ──spaw
 - **Distillation vault** resolves via `db.effectiveObsidianVault()` = Settings
   value first, then the `OBSIDIAN_VAULT` env var, else off. Use that helper; don't
   read `config.obsidianVault` directly in new code.
-- **better-sqlite3 is a native module.** `pnpm desktop:dist` rebuilds it for
-  Electron's ABI; afterwards run `pnpm install` once before `pnpm dev`/`pnpm test`
-  (system Node ABI) again.
+- **better-sqlite3 is a native module.** `pnpm desktop` runs the Electron app
+  against system-Node's build of it; if you ever see an ABI mismatch on boot, run
+  `pnpm install` (or `pnpm rebuild better-sqlite3`) to recompile it.
 
 ## Testing — the gate
 
 ```bash
-pnpm e2e        # typecheck + vitest + build + REST/WS smoke + daemon CLI; exits non-zero on any failure
+pnpm e2e        # typecheck + vitest + build + REST/WS smoke; exits non-zero on any failure
 pnpm test       # just the vitest suite (offline; builds shared first)
 pnpm typecheck  # all packages
 ```

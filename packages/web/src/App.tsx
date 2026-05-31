@@ -307,7 +307,7 @@ function Welcome({ harnesses }: { harnesses: HarnessInfo[] }) {
       <p>One chat dashboard over your local LLM harnesses.</p>
       <div className="welcome-harnesses">
         {harnesses.map((h) => (
-          <span key={h.id} className={`badge ${h.available ? "" : "badge-dim"}`}>
+          <span key={h.id} data-harness={h.id} className={`badge ${h.available ? "" : "badge-dim"}`}>
             {h.label} {h.available ? "✓" : "—"}
           </span>
         ))}

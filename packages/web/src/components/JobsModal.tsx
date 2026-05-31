@@ -85,7 +85,7 @@ export function JobsModal({
               <div className="job-main">
                 <div className="job-name">
                   {job.name}
-                  <span className="badge badge-dim">{job.harness}{job.model ? ` · ${job.model}` : ""}</span>
+                  <span className="badge" data-harness={job.harness}>{job.harness}{job.model ? ` · ${job.model}` : ""}</span>
                 </div>
                 <div className="job-meta">
                   <code>{job.schedule}</code>

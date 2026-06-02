@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🌸 Bobby
+<img src="docs/flower.svg" width="84" alt="Bobby" />
+
+# Bobby
 
 **One chat dashboard over the LLM harnesses you already run.**
 

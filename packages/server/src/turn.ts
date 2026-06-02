@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { extractQuestions } from "@bobby/shared";
 import type { Chat, Message, MessageMeta, Plan, ServerFrame } from "@bobby/shared";
 import { getAdapter } from "./adapters/index.js";
 import { chatWorkdir, config } from "./config.js";
@@ -248,6 +249,16 @@ async function streamAssistant(
   }
 
   const saved = db.updateMessage(assistant.id, finalText, Object.keys(meta).length ? meta : null);
+
+  // The turn ended on an AskUserQuestion: we killed the harness mid-flight, so
+  // its native session now has a dangling tool_use that `-r` can't resume.
+  // Drop it — the user's answer turn replays Bobby's stored history instead
+  // (SQLite is the source of truth).
+  if (extractQuestions(meta).length) {
+    db.clearHarnessSession(chat.id);
+    chat.harnessSessionId = null;
+  }
+
   emit({ type: "turn-end", chatId: chat.id, message: saved });
 
   if (!errored && !opts.planMode && config.autoDistill && db.effectiveObsidianVault()) {

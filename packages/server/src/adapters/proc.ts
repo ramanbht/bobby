@@ -37,6 +37,8 @@ export interface LineProcess {
   stderr(): string;
   /** Resolves with the process exit code when it closes. */
   exit: Promise<number | null>;
+  /** Terminate the child early (SIGTERM) — e.g. to halt a turn at a question. */
+  kill(): void;
 }
 
 export interface SpawnOptions {
@@ -88,7 +90,7 @@ export function spawnLineProcess(bin: string, args: string[], opts: SpawnOptions
     else opts.signal.addEventListener("abort", () => child.kill("SIGTERM"), { once: true });
   }
 
-  return { lines: queue, stderr: () => stderrText, exit };
+  return { lines: queue, stderr: () => stderrText, exit, kill: () => child.kill("SIGTERM") };
 }
 
 /**

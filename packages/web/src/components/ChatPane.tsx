@@ -157,6 +157,7 @@ function ConfigPanel({ chat, onPatch }: { chat: ChatWithMessages; onPatch: (p: U
   const [agent, setAgent] = useState(chat.config?.agent ?? "");
   const [agentsJson, setAgentsJson] = useState(chat.config?.agentsJson ?? "");
   const [skills, setSkills] = useState((chat.config?.skills ?? []).join(", "));
+  const [askWhenUnsure, setAskWhenUnsure] = useState(chat.config?.askWhenUnsure !== false);
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -164,6 +165,7 @@ function ConfigPanel({ chat, onPatch }: { chat: ChatWithMessages; onPatch: (p: U
     setAgent(chat.config?.agent ?? "");
     setAgentsJson(chat.config?.agentsJson ?? "");
     setSkills((chat.config?.skills ?? []).join(", "));
+    setAskWhenUnsure(chat.config?.askWhenUnsure !== false);
     setJsonError(null);
   }, [chat.id]);
 
@@ -182,6 +184,7 @@ function ConfigPanel({ chat, onPatch }: { chat: ChatWithMessages; onPatch: (p: U
         agent: agent.trim() || undefined,
         agentsJson: agentsJson.trim() || undefined,
         skills: skills.split(",").map((s) => s.trim()).filter(Boolean),
+        askWhenUnsure,
       },
     });
     setSaved(true);
@@ -207,6 +210,17 @@ function ConfigPanel({ chat, onPatch }: { chat: ChatWithMessages; onPatch: (p: U
       <label className="field">
         <span>Skills <span className="muted">(comma-separated · Hermes &amp; pi)</span></span>
         <input value={skills} placeholder="e.g. pdf, xlsx" onChange={(e) => setSkills(e.target.value)} />
+      </label>
+      <label className="field-check">
+        <input
+          type="checkbox"
+          checked={askWhenUnsure}
+          onChange={(e) => setAskWhenUnsure(e.target.checked)}
+        />
+        <span>
+          Ask me when unsure <span className="muted">(Claude)</span>
+          <span className="field-hint">Claude pauses to ask instead of guessing on ambiguous requests.</span>
+        </span>
       </label>
       {jsonError && <div className="config-error">{jsonError}</div>}
       <div className="config-actions">

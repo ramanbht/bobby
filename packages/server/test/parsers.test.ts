@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseClaudeStreamLine } from "../src/adapters/claude.js";
+import { parseClaudeStreamLine, buildClaudeArgs } from "../src/adapters/claude.js";
 import { mapAcpUpdate, mapAcpUsage } from "../src/adapters/acp.js";
 import { extractText, pluckText } from "../src/adapters/pi.js";
 import { promptWithHistory, renderTranscript } from "../src/adapters/types.js";
@@ -205,6 +205,31 @@ describe("isValidSchedule (cron)", () => {
   it("rejects nonsense", () => {
     expect(isValidSchedule("not a cron")).toBe(false);
     expect(isValidSchedule("")).toBe(false);
+  });
+});
+
+describe("buildClaudeArgs (ask-when-unsure nudge)", () => {
+  const base = {
+    prompt: "hi",
+    history: [] as Message[],
+    cwd: "/tmp",
+    signal: new AbortController().signal,
+  };
+
+  it("appends the ambiguity nudge by default", () => {
+    const args = buildClaudeArgs(base);
+    expect(args).toContain("--append-system-prompt");
+  });
+
+  it("omits the nudge when askWhenUnsure is explicitly false", () => {
+    const args = buildClaudeArgs({ ...base, config: { askWhenUnsure: false } });
+    expect(args).not.toContain("--append-system-prompt");
+  });
+
+  it("omits the nudge in plan mode", () => {
+    const args = buildClaudeArgs({ ...base, planMode: true });
+    expect(args).not.toContain("--append-system-prompt");
+    expect(args[args.indexOf("--permission-mode") + 1]).toBe("plan");
   });
 });
 

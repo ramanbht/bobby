@@ -92,6 +92,45 @@ export function parseClaudeStreamLine(line: string): HarnessEvent[] {
 }
 
 /**
+ * Instructs Claude to surface genuine ambiguity as an AskUserQuestion call
+ * instead of guessing. Appended (when enabled) so Bobby can end the turn at the
+ * question and let the user pick — see `askWhenUnsure` in ChatConfig.
+ */
+export const ASK_NUDGE =
+  "If the user's request is ambiguous, underspecified, or hinges on a decision only they can make " +
+  "(e.g. choosing between libraries/frameworks, a file location, or any irreversible or destructive " +
+  "action), do not guess. Stop and call the AskUserQuestion tool with a short question and 2-4 concrete " +
+  "options. Only ask when it genuinely matters — otherwise proceed without asking.";
+
+/**
+ * Build the `claude` CLI args for a turn. Pure (no spawning) so the flag wiring
+ * — permission mode, agents, the ambiguity nudge — can be unit-tested.
+ */
+export function buildClaudeArgs(input: TurnInput): string[] {
+  const args = [
+    "-p",
+    "--output-format",
+    "stream-json",
+    "--include-partial-messages",
+    "--verbose",
+    "--permission-mode",
+    input.planMode ? "plan" : config.claudePermissionMode,
+  ];
+  // Ask-when-unsure is on by default; only an explicit `false` disables it. Skip
+  // it in plan mode, which has its own propose-then-approve flow.
+  if (!input.planMode && input.config?.askWhenUnsure !== false) {
+    args.push("--append-system-prompt", ASK_NUDGE);
+  }
+  if (input.model) args.push("--model", input.model);
+  if (input.config?.agent) args.push("--agent", input.config.agent);
+  if (input.config?.agentsJson) args.push("--agents", input.config.agentsJson);
+  if (input.harnessSessionId) args.push("-r", input.harnessSessionId);
+  // Resuming → send only the new message; otherwise replay history for context.
+  args.push(promptWithHistory(input, !!input.harnessSessionId));
+  return args;
+}
+
+/**
  * Claude Code adapter — the flagship, fully streaming path. Drives
  * `claude -p --output-format stream-json --include-partial-messages` and
  * resumes via `-r <session_id>`. Supports custom agents (`--agent`,
@@ -103,21 +142,7 @@ export const claudeAdapter: HarnessAdapter = {
   streaming: true,
 
   async *run(input: TurnInput): AsyncIterable<HarnessEvent> {
-    const args = [
-      "-p",
-      "--output-format",
-      "stream-json",
-      "--include-partial-messages",
-      "--verbose",
-      "--permission-mode",
-      input.planMode ? "plan" : config.claudePermissionMode,
-    ];
-    if (input.model) args.push("--model", input.model);
-    if (input.config?.agent) args.push("--agent", input.config.agent);
-    if (input.config?.agentsJson) args.push("--agents", input.config.agentsJson);
-    if (input.harnessSessionId) args.push("-r", input.harnessSessionId);
-    // Resuming → send only the new message; otherwise replay history for context.
-    args.push(promptWithHistory(input, !!input.harnessSessionId));
+    const args = buildClaudeArgs(input);
 
     // Claude Code only emits thinking blocks when extended thinking is on;
     // MAX_THINKING_TOKENS sets the budget (and turns it on). 0 ⇒ leave it off.
@@ -133,10 +158,20 @@ export const claudeAdapter: HarnessAdapter = {
     });
 
     let terminal = false;
+    let asked = false;
     for await (const line of proc.lines) {
       for (const event of parseClaudeStreamLine(line)) {
         yield event;
         if (event.type === "done" || event.type === "error") terminal = true;
+        else if (event.type === "tool-use" && event.name === "AskUserQuestion") asked = true;
+      }
+      // The harness asked the user something. In headless mode the CLI would
+      // auto-answer and barrel on, so end the turn here: kill the process and
+      // emit `done`. Bobby surfaces the options; the user's pick is the next turn.
+      if (asked) {
+        proc.kill();
+        yield { type: "done" };
+        return;
       }
       if (terminal) return;
     }

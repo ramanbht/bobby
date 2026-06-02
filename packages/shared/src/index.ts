@@ -107,6 +107,13 @@ export interface ChatConfig {
   agent?: string;
   agentsJson?: string;
   skills?: string[];
+  /**
+   * When true (the default), nudge Claude to stop and ask via the
+   * AskUserQuestion tool when a request is genuinely ambiguous, instead of
+   * guessing. Bobby ends the turn at the question so you can pick an answer.
+   * Set false to let Claude always proceed on its own best guess.
+   */
+  askWhenUnsure?: boolean;
 }
 
 export interface Chat {
@@ -270,7 +277,7 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   defaultHarness: "claude",
   models: {},
-  defaultConfig: {},
+  defaultConfig: { askWhenUnsure: true },
 };
 
 export interface DistillResult {

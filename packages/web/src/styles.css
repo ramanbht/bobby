@@ -77,7 +77,7 @@ body {
 
 /* ---------- sidebar ---------- */
 .sidebar {
-  background: var(--bg-2);
+  background: var(--bg);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -174,8 +174,8 @@ textarea { resize: vertical; }
   padding: 9px 10px; border-radius: 8px; cursor: pointer; border: 1px solid transparent;
   transition: background var(--t-fast), border-color var(--t-fast);
 }
-.chat-item:hover { background: var(--bg-3); }
-.chat-item.active { background: var(--bg-3); border-color: var(--accent); box-shadow: var(--inner-hi); }
+.chat-item:hover { background: rgba(139, 92, 246, 0.08); }
+.chat-item.active { background: rgba(139, 92, 246, 0.18); border-color: var(--accent); box-shadow: var(--inner-hi); }
 .chat-item-main { min-width: 0; }
 .chat-title { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chat-meta { font-size: 11px; color: var(--text-dim); }
@@ -295,11 +295,11 @@ textarea { resize: vertical; }
 .msg { display: flex; flex-direction: column; gap: 4px; max-width: 820px; width: 100%; align-self: center; }
 .msg-role { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
 .msg-body {
-  background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 12px 14px; line-height: 1.55; font-size: 14.5px; word-wrap: break-word;
   box-shadow: var(--shadow-1), var(--inner-hi);
 }
-.msg-user .msg-body { background: rgba(139, 92, 246, 0.16); border-color: rgba(139, 92, 246, 0.42); }
+.msg-user .msg-body { background: rgba(139, 92, 246, 0.18); border-color: rgba(139, 92, 246, 0.45); }
 .prose { white-space: pre-wrap; }
 .prose strong { color: #f4eeff; font-weight: 700; }
 .inline-code {

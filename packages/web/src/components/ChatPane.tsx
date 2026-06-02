@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { extractQuestions } from "@bobby/shared";
 import type { ChatWithMessages, HarnessId, HarnessInfo, Message, UpdateChatRequest } from "@bobby/shared";
 import { MessageContent } from "./MessageContent.js";
 import { PlanCard } from "./PlanCard.js";
+import { QuestionCard } from "./QuestionCard.js";
 import { ReviewPane } from "./ReviewPane.js";
 
 export function ChatPane({
@@ -14,6 +16,7 @@ export function ChatPane({
   onPatch,
   onEditMessage,
   onReviewSubmit,
+  onAnswer,
   onExecutePlan,
   onContinuePlan,
   onStop,
@@ -27,6 +30,7 @@ export function ChatPane({
   onPatch: (patch: UpdateChatRequest) => void;
   onEditMessage: (messageId: string, text: string) => void;
   onReviewSubmit: (text: string) => void;
+  onAnswer: (text: string) => void;
   onExecutePlan: (messageId: string) => void;
   onContinuePlan: (messageId: string) => void;
   onStop: () => void;
@@ -92,13 +96,15 @@ export function ChatPane({
           {chat.messages.length === 0 && (
             <div className="empty-conv">Say something to {chat.harness}.</div>
           )}
-          {chat.messages.map((m) => (
+          {chat.messages.map((m, i) => (
             <MessageBubble
               key={m.id}
               message={m}
               busy={busy}
+              isLast={i === chat.messages.length - 1}
               onEdit={m.role === "user" ? (text) => onEditMessage(m.id, text) : undefined}
               onReview={m.role === "assistant" ? () => setReviewId(m.id) : undefined}
+              onAnswer={onAnswer}
               onApprovePlan={() => onExecutePlan(m.id)}
               onContinuePlan={() => onContinuePlan(m.id)}
               onStop={onStop}
@@ -213,22 +219,29 @@ function ConfigPanel({ chat, onPatch }: { chat: ChatWithMessages; onPatch: (p: U
 function MessageBubble({
   message,
   busy,
+  isLast,
   onEdit,
   onReview,
+  onAnswer,
   onApprovePlan,
   onContinuePlan,
   onStop,
 }: {
   message: Message;
   busy: boolean;
+  isLast: boolean;
   onEdit?: (text: string) => void;
   onReview?: () => void;
+  onAnswer: (text: string) => void;
   onApprovePlan: () => void;
   onContinuePlan: () => void;
   onStop: () => void;
 }) {
   const isUser = message.role === "user";
   const plan = message.meta?.plan;
+  // Surface pickable options only for the latest assistant message once its
+  // turn has settled — answering sends a fresh turn that resumes the session.
+  const questions = !isUser && isLast && !busy ? extractQuestions(message.meta) : [];
   const streaming = !isUser && busy && message.content === "" && !plan;
   const canReview = !!onReview && !plan && !!message.content && !busy;
   const thinking = !isUser ? message.meta?.thinking : undefined;
@@ -319,6 +332,7 @@ function MessageBubble({
                 {message.meta.toolCalls.length > 1 ? "s" : ""}: {message.meta.toolCalls.map((t) => t.name).join(", ")}
               </div>
             ) : null}
+            {questions.length > 0 && <QuestionCard questions={questions} onAnswer={onAnswer} />}
             {message.meta?.usage?.costUsd != null && (
               <div className="usage-note">${message.meta.usage.costUsd.toFixed(4)}</div>
             )}

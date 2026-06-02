@@ -5,6 +5,7 @@ import { extractText, pluckText } from "../src/adapters/pi.js";
 import { promptWithHistory, renderTranscript } from "../src/adapters/types.js";
 import { parseNote } from "../src/memory/distill.js";
 import { slugifyTitle } from "../src/memory/obsidian.js";
+import { extractQuestions } from "@bobby/shared";
 import type { Message } from "@bobby/shared";
 
 describe("parseClaudeStreamLine", () => {
@@ -204,5 +205,56 @@ describe("isValidSchedule (cron)", () => {
   it("rejects nonsense", () => {
     expect(isValidSchedule("not a cron")).toBe(false);
     expect(isValidSchedule("")).toBe(false);
+  });
+});
+
+describe("extractQuestions (AskUserQuestion)", () => {
+  const ask = (questions: unknown) => ({
+    toolCalls: [{ name: "AskUserQuestion", input: { questions } }],
+  });
+
+  it("returns [] when there are no tool calls", () => {
+    expect(extractQuestions(null)).toEqual([]);
+    expect(extractQuestions({})).toEqual([]);
+    expect(extractQuestions({ toolCalls: [{ name: "Bash", input: {} }] })).toEqual([]);
+  });
+
+  it("parses a single-select question with labeled options", () => {
+    const qs = extractQuestions(
+      ask([
+        {
+          header: "Library",
+          question: "Which date library?",
+          multiSelect: false,
+          options: [
+            { label: "date-fns", description: "Tree-shakeable" },
+            { label: "luxon" },
+          ],
+        },
+      ]),
+    );
+    expect(qs).toEqual([
+      {
+        header: "Library",
+        question: "Which date library?",
+        multiSelect: false,
+        options: [
+          { label: "date-fns", description: "Tree-shakeable" },
+          { label: "luxon", description: undefined },
+        ],
+      },
+    ]);
+  });
+
+  it("carries multiSelect and tolerates string options", () => {
+    const qs = extractQuestions(ask([{ question: "Pick features", multiSelect: true, options: ["a", "b"] }]));
+    expect(qs[0].multiSelect).toBe(true);
+    expect(qs[0].options).toEqual([{ label: "a" }, { label: "b" }]);
+  });
+
+  it("skips malformed questions (no options or no text)", () => {
+    expect(extractQuestions(ask([{ question: "no opts", options: [] }]))).toEqual([]);
+    expect(extractQuestions(ask([{ options: [{ label: "x" }] }]))).toEqual([]);
+    expect(extractQuestions(ask("nonsense"))).toEqual([]);
   });
 });

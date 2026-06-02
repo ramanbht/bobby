@@ -141,6 +141,72 @@ export interface MessageMeta {
 }
 
 /* ------------------------------------------------------------------ *
+ * Harness questions
+ *
+ * Some harnesses (e.g. Claude's `AskUserQuestion` tool) pause to ask the user
+ * to pick between options. Bobby runs turns headless and one-shot, so it can't
+ * answer mid-turn — instead it surfaces the question's options as pickable
+ * choices and sends the selection back as the next turn (resuming the session).
+ * ------------------------------------------------------------------ */
+
+export interface QuestionOption {
+  label: string;
+  description?: string;
+}
+
+export interface HarnessQuestion {
+  /** Short label for the question (Claude's AskUserQuestion `header`). */
+  header?: string;
+  question: string;
+  multiSelect: boolean;
+  options: QuestionOption[];
+}
+
+/**
+ * Pull any `AskUserQuestion`-style questions out of a message's tool calls.
+ * Pure and defensive (tolerates shape drift) so it can be unit-tested and
+ * reused by the server and the UI without spawning anything.
+ */
+export function extractQuestions(meta: MessageMeta | null | undefined): HarnessQuestion[] {
+  const calls = meta?.toolCalls;
+  if (!calls?.length) return [];
+  const out: HarnessQuestion[] = [];
+  for (const call of calls) {
+    if (call.name !== "AskUserQuestion") continue;
+    const input = call.input as { questions?: unknown } | null | undefined;
+    const questions = Array.isArray(input?.questions) ? input!.questions : [];
+    for (const raw of questions) {
+      const q = raw as Record<string, unknown>;
+      const options: QuestionOption[] = Array.isArray(q?.options)
+        ? (q.options as unknown[])
+            .map((o): QuestionOption | null => {
+              if (typeof o === "string") return { label: o };
+              const obj = o as Record<string, unknown>;
+              if (obj && typeof obj.label === "string") {
+                return {
+                  label: obj.label,
+                  description: typeof obj.description === "string" ? obj.description : undefined,
+                };
+              }
+              return null;
+            })
+            .filter((o): o is QuestionOption => o !== null)
+        : [];
+      const question =
+        typeof q?.question === "string" ? q.question : typeof q?.header === "string" ? q.header : "";
+      if (!question || options.length === 0) continue;
+      out.push({
+        header: typeof q?.header === "string" ? q.header : undefined,
+        question,
+        multiSelect: !!q?.multiSelect,
+        options,
+      });
+    }
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
  * Plan-then-execute
  *
  * Instead of full-yolo, a turn can first produce a reviewable plan. The user

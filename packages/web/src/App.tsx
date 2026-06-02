@@ -232,6 +232,7 @@ export function App() {
               onPatch={patchChat}
               onEditMessage={editAndResend}
               onReviewSubmit={sendMessage}
+              onAnswer={sendMessage}
               onExecutePlan={approvePlan}
               onContinuePlan={continueStep}
               onStop={stopRun}

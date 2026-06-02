@@ -104,7 +104,7 @@ Prefer a native window over a browser tab?
 pnpm desktop        # run Bobby in its own window (Electron) — boots the server for you
 ```
 
-Closing the window keeps Bobby alive in the menu bar (🌸) so scheduled jobs keep
+Closing the window keeps Bobby alive in the menu bar (<img src="docs/flower.svg" width="13" alt="sakura" />) so scheduled jobs keep
 firing; quit explicitly from the tray or with ⌘Q. The desktop app shares the **same
 database** as `pnpm dev` / `pnpm start` (see [Configuration](#configuration)).
 
@@ -129,7 +129,7 @@ Then restart however you run Bobby — or use the one-step "pull, then run" shor
 |---|---|
 | `pnpm dev` | `pnpm dev:latest` (refresh, then dev) |
 | `pnpm start` | `pnpm start:latest` (refresh if HEAD moved, then start) |
-| `pnpm desktop` | tray 🌸 → **Check for updates & Restart** (pull + rebuild + relaunch) |
+| `pnpm desktop` | tray <img src="docs/flower.svg" width="13" alt="sakura" /> → **Check for updates & Restart** (pull + rebuild + relaunch) |
 
 `pnpm refresh` uses `git pull --ff-only`, so it stops cleanly (no merge) if your tree
 has local changes. Updates are best-effort: if a pull or build fails, Bobby keeps the
@@ -218,7 +218,7 @@ streams live into any open window. Toggle jobs on/off, **Run now**, or delete.
 ### Keeping jobs fired when the UI is closed
 
 Run the **desktop app** (`pnpm desktop`) and close the window — Bobby keeps running
-in the menu bar (look for the 🌸). The server stays up, so **scheduled jobs keep
+in the menu bar (look for the <img src="docs/flower.svg" width="13" alt="sakura" />). The server stays up, so **scheduled jobs keep
 firing**. The tray menu has **Check for updates & Restart** (git pull + rebuild +
 relaunch in one click), **Restart Bobby** (plain relaunch), and **Quit Bobby** (⌘Q);
 quitting is explicit.

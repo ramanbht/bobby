@@ -135,12 +135,12 @@ async function checkForUpdatesAndRestart(): Promise<void> {
     return;
   }
 
-  tray?.setTitle("🌸 ⏳");
+  tray?.setTitle(" ⏳");
   try {
     const before = head();
     await step("git", ["pull", "--ff-only"]);
     if (head() === before) {
-      tray?.setTitle("🌸");
+      tray?.setTitle("");
       await dialog.showMessageBox({
         type: "info",
         message: "Already up to date",
@@ -153,7 +153,7 @@ async function checkForUpdatesAndRestart(): Promise<void> {
     await step("pnpm", ["--filter", "@bobby/desktop", "build"]);
     relaunchApp();
   } catch (err) {
-    tray?.setTitle("🌸");
+    tray?.setTitle("");
     await dialog.showMessageBox({
       type: "error",
       message: "Update failed",
@@ -162,11 +162,17 @@ async function checkForUpdatesAndRestart(): Promise<void> {
   }
 }
 
+// Bobby's sakura mark for the macOS menu bar. nativeImage auto-picks the @2x
+// variant on retina. Colored (not a template image) so the blossom keeps its
+// pink/green instead of being flattened to monochrome.
+function trayIcon(): Electron.NativeImage {
+  const img = nativeImage.createFromPath(path.join(__dirname, "..", "assets", "tray-icon.png"));
+  img.setTemplateImage(false);
+  return img;
+}
+
 function createTray(): void {
-  // Empty icon + a unicode title gives a clean 🌸 in the macOS menu bar with
-  // no platform-specific image asset to ship.
-  tray = new Tray(nativeImage.createEmpty());
-  tray.setTitle("🌸");
+  tray = new Tray(trayIcon());
   tray.setToolTip("Bobby — click to open");
   const template: MenuItemConstructorOptions[] = [
     { label: "Open Bobby", click: () => showWindow() },

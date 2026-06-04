@@ -10,6 +10,8 @@ import type { Chat, HarnessEvent, ServerFrame } from "@bobby/shared";
 // Hoisted shared state the mock adapter reads from and writes to.
 const ctl = vi.hoisted(() => ({
   scripted: [] as HarnessEvent[],
+  /** When set, the adapter yields nothing and blocks until the turn is aborted. */
+  stallUntilAbort: false,
   lastInput: null as null | {
     prompt: string;
     historyLen: number;
@@ -28,6 +30,7 @@ vi.mock("../src/adapters/index.js", () => {
       history: unknown[];
       harnessSessionId?: string | null;
       planMode?: boolean;
+      signal?: AbortSignal;
     }) {
       ctl.lastInput = {
         prompt: input.prompt,
@@ -36,6 +39,14 @@ vi.mock("../src/adapters/index.js", () => {
         planMode: !!input.planMode,
       };
       for (const ev of ctl.scripted) yield ev;
+      if (ctl.stallUntilAbort) {
+        // Mimic a live harness that's still working: yield nothing and resolve
+        // only once the turn is aborted (the subprocess would be SIGTERM'd).
+        await new Promise<void>((resolve) => {
+          if (input.signal?.aborted) return resolve();
+          input.signal?.addEventListener("abort", () => resolve(), { once: true });
+        });
+      }
     },
   };
   return {
@@ -58,6 +69,7 @@ describe("turn orchestration (mock adapter)", () => {
     chat = db.createChat({ harness: "claude", model: "sonnet", title: "orchestration test" });
     frames = [];
     ctl.scripted = [];
+    ctl.stallUntilAbort = false;
     ctl.lastInput = null;
   });
 
@@ -172,6 +184,29 @@ describe("turn orchestration (mock adapter)", () => {
     await p;
     const plan = db.getMessage(planId)?.meta?.plan;
     expect(plan?.status).toBe("cancelled");
+  });
+
+  it("stopChat halts an in-flight normal turn (marks it stopped, clears session)", async () => {
+    // First turn establishes a native session to resume.
+    ctl.scripted = [{ type: "session", sessionId: "live-1" }, { type: "done", text: "ok" }];
+    await runTurn(chat, "hi", emit);
+    expect(reload(chat.id).harnessSessionId).toBe("live-1");
+
+    // Second turn stalls like a live harness; the user hits Stop.
+    ctl.scripted = [];
+    ctl.stallUntilAbort = true;
+    frames = [];
+    const p = runTurn(reload(chat.id), "do something slow", emit);
+    stopChat(chat.id);
+    await p;
+
+    const msgs = db.listMessages(chat.id);
+    const last = msgs[msgs.length - 1];
+    expect(last.role).toBe("assistant");
+    expect(last.content).toContain("Stopped");
+    expect(frames.find((f) => f.type === "turn-end")).toBeTruthy();
+    // Killed mid-flight ⇒ native session dropped so the next turn replays history.
+    expect(reload(chat.id).harnessSessionId).toBeNull();
   });
 
   it("editAndRerun rewrites the message, truncates after, clears session, and re-streams", async () => {

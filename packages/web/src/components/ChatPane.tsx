@@ -66,7 +66,11 @@ export function ChatPane({
         </div>
 
         <div className="chat-header-right">
-          <ModelInput chat={chat} onPatch={onPatch} />
+          <ModelInput
+            chat={chat}
+            models={harnesses.find((h) => h.id === chat.harness)?.models ?? []}
+            onPatch={onPatch}
+          />
           <button
             className={`icon-btn ${showConfig ? "active" : ""}`}
             title="Agents & skills"
@@ -127,28 +131,56 @@ export function ChatPane({
   );
 }
 
-/** Inline, always-visible per-chat model selector (commits on Enter / blur). */
-function ModelInput({ chat, onPatch }: { chat: ChatWithMessages; onPatch: (p: UpdateChatRequest) => void }) {
+/**
+ * Inline, always-visible per-chat model picker. Backed by a <datalist> so it
+ * suggests the harness's known models (click to pick) while staying free-text —
+ * a user can still type any model string the CLI understands. Commits on
+ * Enter / blur, and immediately when a suggestion is chosen.
+ */
+function ModelInput({
+  chat,
+  models,
+  onPatch,
+}: {
+  chat: ChatWithMessages;
+  models: string[];
+  onPatch: (p: UpdateChatRequest) => void;
+}) {
   const [model, setModel] = useState(chat.model ?? "");
   useEffect(() => setModel(chat.model ?? ""), [chat.id, chat.model]);
 
-  const commit = () => {
-    const next = model.trim();
+  const listId = `models-${chat.harness}`;
+  const commit = (value: string) => {
+    const next = value.trim();
     if (next !== (chat.model ?? "")) onPatch({ model: next || null });
   };
 
   return (
-    <input
-      className="model-input"
-      value={model}
-      placeholder="model"
-      title="Model for this chat"
-      onChange={(e) => setModel(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-      }}
-    />
+    <>
+      <input
+        className="model-input"
+        list={models.length ? listId : undefined}
+        value={model}
+        placeholder="model"
+        title="Model for this chat — pick a suggestion or type any model the CLI accepts"
+        onChange={(e) => {
+          setModel(e.target.value);
+          // Picking from the datalist fires a change with the full value; commit it.
+          if (models.includes(e.target.value)) commit(e.target.value);
+        }}
+        onBlur={() => commit(model)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+      />
+      {models.length > 0 && (
+        <datalist id={listId}>
+          {models.map((m) => (
+            <option key={m} value={m} />
+          ))}
+        </datalist>
+      )}
+    </>
   );
 }
 
@@ -253,9 +285,11 @@ function MessageBubble({
 }) {
   const isUser = message.role === "user";
   const plan = message.meta?.plan;
-  // Surface pickable options only for the latest assistant message once its
-  // turn has settled — answering sends a fresh turn that resumes the session.
-  const questions = !isUser && isLast && !busy ? extractQuestions(message.meta) : [];
+  // Surface pickable options on the latest assistant message as soon as the
+  // AskUserQuestion tool-use streams into meta — don't wait for the turn to
+  // settle (the server ends the turn at the question anyway). Answering sends a
+  // fresh turn that replays history.
+  const questions = !isUser && isLast ? extractQuestions(message.meta) : [];
   const streaming = !isUser && busy && message.content === "" && !plan;
   const canReview = !!onReview && !plan && !!message.content && !busy;
   const thinking = !isUser ? message.meta?.thinking : undefined;

@@ -243,6 +243,7 @@ export function App() {
               harnessLabel={harnesses.find((h) => h.id === active.harness)?.label ?? active.harness}
               onSend={sendMessage}
               onPlan={planFirst}
+              onStop={stopRun}
             />
           </>
         ) : (

@@ -175,8 +175,12 @@ async function streamAssistant(
   const adapter = getAdapter(chat.harness);
   const controller = new AbortController();
   if (opts.signal) {
+    // Plan steps already register their controller in `running`; just chain abort.
     if (opts.signal.aborted) controller.abort();
     else opts.signal.addEventListener("abort", () => controller.abort(), { once: true });
+  } else {
+    // Normal turn: register so `stopChat` can abort this in-flight response.
+    running.set(chat.id, controller);
   }
 
   let deltaBuf = "";
@@ -235,7 +239,13 @@ async function streamAssistant(
     textBlock = `⚠️ ${(err as Error).message}`;
   }
 
-  const finalText = doneText || deltaBuf || textBlock || (errored ? "⚠️ (no response)" : "");
+  // The user hit Stop (or a plan step was cancelled): the subprocess was killed.
+  const stopped = controller.signal.aborted;
+  // Normal turns own their `running` entry; plan steps clean up in runNextStep.
+  if (!opts.signal && running.get(chat.id) === controller) running.delete(chat.id);
+
+  let finalText = doneText || deltaBuf || textBlock || (errored ? "⚠️ (no response)" : "");
+  if (stopped && !errored) finalText = finalText ? `${finalText}\n\n_⏹ Stopped_` : "⏹ Stopped.";
   if (thinking) meta.thinking = thinking;
 
   if (opts.asPlan && !errored) {
@@ -250,18 +260,18 @@ async function streamAssistant(
 
   const saved = db.updateMessage(assistant.id, finalText, Object.keys(meta).length ? meta : null);
 
-  // The turn ended on an AskUserQuestion: we killed the harness mid-flight, so
-  // its native session now has a dangling tool_use that `-r` can't resume.
-  // Drop it — the user's answer turn replays Bobby's stored history instead
-  // (SQLite is the source of truth).
-  if (extractQuestions(meta).length) {
+  // We killed the harness mid-flight — either it ended on an AskUserQuestion or
+  // the user hit Stop. Its native session now has a dangling/partial state that
+  // `-r` can't cleanly resume, so drop it; the next turn replays Bobby's stored
+  // history instead (SQLite is the source of truth).
+  if (stopped || extractQuestions(meta).length) {
     db.clearHarnessSession(chat.id);
     chat.harnessSessionId = null;
   }
 
   emit({ type: "turn-end", chatId: chat.id, message: saved });
 
-  if (!errored && !opts.planMode && config.autoDistill && db.effectiveObsidianVault()) {
+  if (!errored && !stopped && !opts.planMode && config.autoDistill && db.effectiveObsidianVault()) {
     distillChat(chat, db.listMessages(chat.id)).catch((e) =>
       console.error("[distill] auto-distill failed:", (e as Error).message),
     );

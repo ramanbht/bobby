@@ -23,6 +23,8 @@ export const hermesAdapter: HarnessAdapter = {
   id: "hermes",
   label: "Hermes",
   streaming: true,
+  // Local harness — model is whatever Hermes is configured with; free-text only.
+  models: [],
 
   async *run(input: TurnInput): AsyncIterable<HarnessEvent> {
     if (input.planMode) {

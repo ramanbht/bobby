@@ -27,6 +27,13 @@ describe("HTTP API", () => {
     expect(ids).toEqual(["claude", "hermes", "pi"]);
   });
 
+  it("exposes per-harness model suggestions", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/harnesses" });
+    const claude = res.json().find((h: { id: string }) => h.id === "claude");
+    expect(Array.isArray(claude.models)).toBe(true);
+    expect(claude.models).toContain("sonnet");
+  });
+
   it("rejects creating a chat with an invalid harness", async () => {
     const res = await app.inject({
       method: "POST",

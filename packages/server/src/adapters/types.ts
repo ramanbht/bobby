@@ -29,6 +29,11 @@ export interface HarnessAdapter {
   label: string;
   /** Whether Bobby streams token deltas for this harness (vs. one final block). */
   streaming: boolean;
+  /**
+   * Known model identifiers this harness accepts via `--model`, surfaced as
+   * suggestions in the UI's model picker. May be empty (free-text only).
+   */
+  models: string[];
   /** Run one turn, yielding normalized events. */
   run(input: TurnInput): AsyncIterable<HarnessEvent>;
 }

@@ -140,6 +140,9 @@ export const claudeAdapter: HarnessAdapter = {
   id: "claude",
   label: "Claude Code",
   streaming: true,
+  // Aliases the Claude CLI resolves to the current release; users can still
+  // type a pinned name (e.g. claude-sonnet-4-6) into the free-text picker.
+  models: ["sonnet", "opus", "haiku"],
 
   async *run(input: TurnInput): AsyncIterable<HarnessEvent> {
     const args = buildClaudeArgs(input);

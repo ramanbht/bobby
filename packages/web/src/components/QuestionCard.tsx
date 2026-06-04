@@ -18,6 +18,9 @@ export function QuestionCard({
 }) {
   // selections[i] = set of chosen labels for question i
   const [selections, setSelections] = useState<string[][]>(() => questions.map(() => []));
+  // Free-text reply — Claude's AskUserQuestion always lets you answer in your
+  // own words instead of (or alongside) picking a preset option.
+  const [freeText, setFreeText] = useState("");
 
   const oneShot = questions.length === 1 && !questions[0].multiSelect;
 
@@ -51,6 +54,11 @@ export function QuestionCard({
   };
 
   const allAnswered = selections.every((s) => s.length > 0);
+
+  const sendFreeText = () => {
+    const text = freeText.trim();
+    if (text) onAnswer(text);
+  };
 
   return (
     <div className="qcard">
@@ -89,6 +97,25 @@ export function QuestionCard({
           </button>
         </div>
       )}
+
+      <div className="qcard-free">
+        <textarea
+          className="qcard-free-input"
+          rows={2}
+          value={freeText}
+          placeholder="…or reply in your own words"
+          onChange={(e) => setFreeText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              sendFreeText();
+            }
+          }}
+        />
+        <button className="ghost-btn" disabled={!freeText.trim()} onClick={sendFreeText}>
+          Send reply
+        </button>
+      </div>
     </div>
   );
 }

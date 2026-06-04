@@ -6,12 +6,14 @@ export function Composer({
   harnessLabel,
   onSend,
   onPlan,
+  onStop,
 }: {
   disabled: boolean;
   busy: boolean;
   harnessLabel: string;
   onSend: (text: string) => void;
   onPlan: (text: string) => void;
+  onStop: () => void;
 }) {
   const [text, setText] = useState("");
   const [planFirst, setPlanFirst] = useState(false);
@@ -56,9 +58,20 @@ export function Composer({
         disabled={disabled}
         rows={1}
       />
-      <button className="send-btn" onClick={submit} disabled={disabled || !text.trim()}>
-        {busy ? "…" : planFirst ? "Plan" : "Send"}
-      </button>
+      {busy ? (
+        <button
+          type="button"
+          className="stop-btn"
+          title="Stop the harness and keep whatever it has produced so far"
+          onClick={onStop}
+        >
+          ■ Stop
+        </button>
+      ) : (
+        <button className="send-btn" onClick={submit} disabled={disabled || !text.trim()}>
+          {planFirst ? "Plan" : "Send"}
+        </button>
+      )}
     </div>
   );
 }

@@ -353,6 +353,19 @@ textarea { resize: vertical; }
 .qcard-actions { margin-top: 12px; }
 .qcard-actions .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.qcard-free {
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+  display: flex; align-items: flex-end; gap: 8px;
+}
+.qcard-free-input {
+  flex: 1; resize: vertical; min-height: 38px; background: var(--bg);
+  color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-family: var(--font-sans); font-size: 13.5px;
+}
+.qcard-free-input:focus { outline: none; border-color: var(--accent); }
+.qcard-free .ghost-btn { flex: none; }
+.qcard-free .ghost-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* ---------- harness reasoning / thinking ---------- */
 .thinking {
   margin: 0 0 8px; border: 1px dashed var(--border); border-radius: 8px;
@@ -511,6 +524,14 @@ textarea { resize: vertical; }
 }
 .send-btn:hover:not(:disabled) { background: var(--accent-2); box-shadow: 0 0 16px rgba(176, 107, 255, 0.4); }
 .send-btn:active:not(:disabled) { transform: translateY(1px); }
+
+.stop-btn {
+  background: transparent; color: var(--danger); font-weight: 600;
+  padding: 0 18px; border: 1px solid var(--danger); border-radius: var(--radius);
+  cursor: pointer; transition: background var(--t-fast), transform var(--t-fast);
+}
+.stop-btn:hover { background: rgba(248, 113, 113, 0.14); }
+.stop-btn:active { transform: translateY(1px); }
 
 /* ---------- modal ---------- */
 .modal-backdrop {

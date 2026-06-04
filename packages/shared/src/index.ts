@@ -292,6 +292,12 @@ export interface HarnessInfo {
   label: string;
   streaming: boolean;
   available: boolean;
+  /**
+   * Known model identifiers the harness accepts via `--model`, offered as
+   * suggestions in the per-chat model picker. Not exhaustive — the field stays
+   * free-text so a user can pin any model string the CLI understands.
+   */
+  models: string[];
 }
 
 /** Server-side feature flags for the UI (returned by GET /api/config). */

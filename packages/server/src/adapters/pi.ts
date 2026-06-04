@@ -14,6 +14,8 @@ export const piAdapter: HarnessAdapter = {
   id: "pi",
   label: "pi",
   streaming: false,
+  // Local harness — model is whatever pi is configured with; free-text only.
+  models: [],
 
   async *run(input: TurnInput): AsyncIterable<HarnessEvent> {
     const sessionDir = path.join(input.cwd, ".pi-session");

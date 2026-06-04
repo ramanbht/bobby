@@ -25,5 +25,6 @@ export function listHarnessInfo(): HarnessInfo[] {
     label: adapters[id].label,
     streaming: adapters[id].streaming,
     available: isAvailable(config.bin[id]),
+    models: adapters[id].models,
   }));
 }
